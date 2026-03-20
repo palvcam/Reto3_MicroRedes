@@ -29,7 +29,9 @@ El objetivo es desarrollar un sistema inteligente capaz de **optimizar el coste 
 
 ---
 
-##  Estructura del repositorio (rellenamos cuando tengamos, la siguiente estructura es solo una idea)
+##  Estructura del repositorio 
+*(rellenamos cuando tengamos, la siguiente estructura es solo una propuesta)*
+```txt
 SistemaMicrored-Reto03-Grupo05
 ┣ data/
 ┃ ┣ pymgrid_data/          # Datos para simulación (Objetivo 1)
@@ -44,11 +46,12 @@ SistemaMicrored-Reto03-Grupo05
 ┃ ┣ PV_prediction.ipynb
 ┃ ┗ FederatedLearning.ipynb
 ┣ tests/
-┃ ┗ pytest_regression/       # Oráculos de regresión
+┃ ┗ pytest_regression/     # Oráculos de regresión
 ┣ Dockerfile
 ┣ requirements.txt
 ┣ README.md
 ┗ LICENSE
+```
 
 
 ---
@@ -102,5 +105,29 @@ Cada CSV contiene:
 ```bash
 git clone https://github.com/palvcam/Reto3_MicroRedes.git
 cd <repo>
+
+```
+### 2. Crear entorno virtual
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+```
+
+### 3. Instalar dependencias
+```bash
+pip install -r requirements.txt
+
+
+```
+
+### 4. Ejecutar notebooks/Scripts
+
+
+
+## Tests?
+
+## Docker y despliegue??
 
 
