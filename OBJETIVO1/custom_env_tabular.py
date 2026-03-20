@@ -27,8 +27,8 @@ class CustomEnvTabular(gym.Env):
         
         # ESPACIO DE OBSERVACIÓN
         # Definimos los bins para las variables continuas
-        self.net_load_bins = [-5.0, 0.0, 5.0, 10.0] # CAMBIANDO...
-        self.price_bins = [0.10, 0.20, 0.30] # CAMBIANDO...
+        self.net_load_bins = [-426.61, -75.55, 15.02, 38.4]
+        self.price_bins = [0.097, 0.134, 0.164]
         
         # Estado: [Carga_Neta, Batería_SoC, Precio_Actual, Hora_del_Día]
         self.observation_space = spaces.MultiDiscrete([
