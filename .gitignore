@@ -1,0 +1,99 @@
+# ============================
+# ARCHIVOS GENERALES
+# ============================
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Entornos virtuales 
+venv/
+.env/
+.venv/
+micro_env/ 
+
+# Archivos temporales
+*.tmp
+*.log
+
+# ============================
+# PYTHON
+# ============================
+
+# Cachés de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Compilados
+*.so
+
+# Carpetas de build
+build/
+dist/
+*.egg-info/
+
+# ============================
+# VISUAL STUDIO CODE
+# ============================
+
+.vscode/
+.history/
+
+# ============================
+# DATOS Y ARCHIVOS GRANDES
+# ============================
+
+# Imágenes
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.tiff
+
+# Datos tabulares
+*.csv
+*.tsv
+*.xls
+*.xlsx
+
+# Archivos de anotaciones
+*.json
+*.xml
+*.yaml
+*.yml
+
+# ============================
+# MACHINE LEARNING / DEEP LEARNING
+# ============================
+
+# Pesos de modelos
+# *.pt
+# *.pth
+# *.ckpt
+# *.h5
+# *.onnx
+# *.tflite
+
+# Salidas de entrenamiento
+# runs/
+# logs/
+# tensorboard/
+# wandb/
+
+# ============================
+# OTROS
+# ============================
+
+# Archivos de configuración sensibles
+*.env
+*.ini
+*.cfg
+
+# Carpeta de resultados o outputs
+outputs/
+results/
+NEREA_PRUEBAS/
+data/
