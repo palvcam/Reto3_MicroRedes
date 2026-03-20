@@ -18,21 +18,17 @@ class CustomEnvTabular(gym.Env):
         self.horizon = horizon
         self.current_step = 0
         
-        # ---------------------------------------------------------
-        # ESPACIO DE ACCIONES (Action Space)
-        # ---------------------------------------------------------
-        # 9 acciones discretas que mapean porcentajes de carga/descarga
+        # ESPACIO DE ACCIONES
+        # 9 acciones discretas
         # 0 a 3: Cargar (100%, 75%, 50%, 25%)
         # 4: Neutro (0%)
         # 5 a 8: Descargar (25%, 50%, 75%, 100%)
         self.action_space = spaces.Discrete(9)
         
-        # ---------------------------------------------------------
-        # ESPACIO DE OBSERVACIÓN (Observation Space)
-        # ---------------------------------------------------------
-        # Definimos los "cajones" (bins) para las variables continuas
-        self.net_load_bins = [-5.0, 0.0, 5.0, 10.0] 
-        self.price_bins = [0.10, 0.20, 0.30]        
+        # ESPACIO DE OBSERVACIÓN
+        # Definimos los bins para las variables continuas
+        self.net_load_bins = [-5.0, 0.0, 5.0, 10.0] # CAMBIANDO...
+        self.price_bins = [0.10, 0.20, 0.30] # CAMBIANDO...
         
         # Estado: [Carga_Neta, Batería_SoC, Precio_Actual, Hora_del_Día]
         self.observation_space = spaces.MultiDiscrete([
@@ -69,7 +65,7 @@ class CustomEnvTabular(gym.Env):
         return np.array([d_net_load, d_soc, d_price, hora_del_dia], dtype=np.int32)
 
     def _get_control_dict(self, action):
-        """Traduce la acción elegida por la IA a órdenes físicas para pymgrid."""
+        """Traduce la acción elegida por el agente a órdenes físicas para pymgrid."""
         pv = self.mg.pv
         load = self.mg.load
         
@@ -121,7 +117,7 @@ class CustomEnvTabular(gym.Env):
         # Asumimos que la energía exportada se paga a la mitad del precio de compra (ajustable)
         cost = (control_dict['grid_import'] * current_price) - (control_dict['grid_export'] * current_price * 0.5)
         
-        # La IA quiere maximizar la recompensa, así que usamos el coste negativo
+        # Queremos maximizar la recompensa, usamos el coste negativo
         reward = -cost
         
         # 4. REWARD SHAPING: Penalización por dejar la batería vacía (<5%)
