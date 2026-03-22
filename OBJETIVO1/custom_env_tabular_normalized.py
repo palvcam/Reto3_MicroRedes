@@ -19,6 +19,8 @@ class CustomEnvTabular(gym.Env):
     - transforma una acción discreta en una acción normalizada
       para los módulos controlables de pymgrid ('battery' y 'grid')
     - usa mg.run(..., normalized=True)
+    - normaliza la reward económica mediante una constante C
+    - aplica una penalización suave si la batería cae por debajo de un umbral
     """
 
     metadata = {"render_modes": []}
@@ -27,15 +29,22 @@ class CustomEnvTabular(gym.Env):
         self,
         pymgrid_network,
         horizon=24 * 365,
-        low_soc_penalty=10.0,
+        reward_scale_C=787.0511991711403,
+        low_soc_penalty=0.3,
+        low_soc_threshold=0.05,
     ):
         super().__init__()
 
         self.mg = pymgrid_network
+
+        # Normalización de reward
+        self.reward_scale_C = float(reward_scale_C)
+
+        # Penalización por batería demasiado descargada
         self.low_soc_penalty = float(low_soc_penalty)
+        self.low_soc_threshold = float(low_soc_threshold)
 
         # Horizon del episodio
-        # len(self.mg) usa la longitud de los módulos temporales de pymgrid
         self.horizon = min(horizon, len(self.mg))
         self.current_step = 0
 
@@ -43,15 +52,16 @@ class CustomEnvTabular(gym.Env):
         # ESPACIO DE ACCIONES
         # ---------------------------------------------------------
         # 9 acciones discretas.
-        # Se mapean a una acción normalizada para batería.
-        # Grid se deja de momento en valor "neutro" fijo.
+        #
+        # OJO:
+        # Según las pruebas realizadas sobre pymgrid:
+        #   - acción 0  -> descarga fuerte
+        #   - acción 8  -> carga fuerte
+        #   - acción 4  -> zona intermedia / casi neutra
+        #
+        # Las acciones se convierten a valores normalizados en [0, 1].
         self.action_space = spaces.Discrete(9)
 
-        # IMPORTANTE:
-        # Esta tabla asume que 1.0 y 0.0 son extremos opuestos del
-        # control de batería y 0.5 es una zona intermedia/neutra.
-        # Si en vuestros tests veis que la polaridad está invertida,
-        # solo tendréis que invertir este diccionario.
         self.battery_action_map = {
             0: 1.00,
             1: 0.875,
@@ -95,7 +105,6 @@ class CustomEnvTabular(gym.Env):
         return float(self.mg.battery.item().soc)
 
     def _get_current_import_price(self):
-        # import_price devuelve array: [actual, forecast...]
         return float(self.mg.grid.item().import_price[0])
 
     def _get_current_export_price(self):
@@ -164,24 +173,27 @@ class CustomEnvTabular(gym.Env):
         """Avanza la simulación un paso."""
         control_dict = self._get_control_dict(action)
 
-        # IMPORTANTE:
-        # mg.sample_action() devolvió acciones normalizadas en [0,1],
-        # así que aquí usamos normalized=True.
+        # pymgrid espera aquí acciones normalizadas en [0,1]
         mg_obs, mg_reward, mg_done, mg_info = self.mg.run(
             control_dict,
             normalized=True
         )
 
-        # Reward base de pymgrid:
+        # Reward económica base de pymgrid:
         # positivo = ingreso / negativo = coste
-        reward = float(mg_reward)
+        raw_reward = float(mg_reward)
 
-        # Coste para análisis, con el mismo convenio que veníais usando:
-        cost = -float(mg_reward)
+        # Coste para análisis
+        cost = -raw_reward
 
-        # Penalización adicional si SoC demasiado bajo
-        if self._get_current_soc() < 0.05:
-            reward -= self.low_soc_penalty
+        # Reward normalizada
+        reward = raw_reward / self.reward_scale_C
+
+        # Penalización suave si SoC demasiado bajo
+        current_soc = self._get_current_soc()
+        if current_soc < self.low_soc_threshold:
+            soc_deficit_ratio = (self.low_soc_threshold - current_soc) / self.low_soc_threshold
+            reward -= self.low_soc_penalty * soc_deficit_ratio
 
         self.current_step += 1
 
@@ -198,7 +210,8 @@ class CustomEnvTabular(gym.Env):
 
         info = {
             "cost": cost,
-            "mg_reward": float(mg_reward),
+            "mg_reward": raw_reward,
+            "reward_normalized": reward,
             "mg_done": bool(mg_done),
             "mg_obs": mg_obs,
             "mg_info": mg_info,
@@ -225,3 +238,25 @@ class CustomEnvTabular(gym.Env):
         info = self._get_info()
 
         return obs, info
+    
+    # =========================================================
+    # PRUBAS RECOMENDADAS ANTE DE Q-LEARNING
+    # =========================================================
+    # env = CustomEnvTabular(
+    #     pymgrid_network=mg0,
+    #     horizon=24*365,
+    #     reward_scale_C=787.0511991711403,
+    #     low_soc_penalty=0.3,
+    #     low_soc_threshold=0.05,
+    # )
+
+    # obs, info = env.reset()
+    # print("obs inicial:", obs, info)
+
+    # for a in [0, 4, 8]:
+    #     obs, reward, terminated, truncated, info = env.step(a)
+    #     print("\nacción:", a)
+    #     print("reward normalizada:", reward)
+    #     print("reward bruta:", info["mg_reward"])
+    #     print("cost:", info["cost"])
+    #     print("soc:", info["soc"])
