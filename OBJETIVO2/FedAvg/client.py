@@ -5,6 +5,7 @@ from collections import OrderedDict
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 from model import PVModel
 import pandas as pd
 import glob
@@ -22,6 +23,7 @@ FEATURES = [
     "Global horizontal irradiance (W/m2)",
     "Diffuse horizontal irradiance (W/m2)"
 ]
+
 
 LOCAL_EPOCHS = 10  # número de épocas que entrena cada cliente por ronda
 
@@ -95,15 +97,31 @@ class PVClient(fl.client.NumPyClient): # Crear el cliente
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         self.model.eval()
-        total_loss = 0
         
-        # Calcula la pérdida
+        all_preds = []
+        all_targets = []
+        
         with torch.no_grad():
             for X_batch, y_batch in self.val_loader:
-                total_loss += self.criterion(self.model(X_batch), y_batch).item()
+                preds = self.model(X_batch)
+                all_preds.append(preds)
+                all_targets.append(y_batch)
         
-        loss = total_loss / len(self.val_loader)
-        return loss, len(self.val_loader.dataset), {"val_loss": loss}
+        all_preds   = torch.cat(all_preds).numpy()
+        all_targets = torch.cat(all_targets).numpy()
+        
+        # Métricas
+        mse  = float(((all_targets - all_preds) ** 2).mean())
+        rmse = mse ** 0.5
+        r2   = r2_score(all_targets, all_preds)
+        
+        print(f"  MSE: {mse:.4f} | RMSE: {rmse:.4f} | R²: {r2:.4f}")
+        
+        return float(mse), len(self.val_loader.dataset), {
+            "val_mse":  mse,
+            "val_rmse": rmse,
+            "val_r2":   r2
+        }
 
 
 if __name__ == "__main__":

@@ -1,6 +1,0 @@
-mlflow==3.10.1
-cloudpickle==3.1.2
-numpy==2.2.6
-opt-einsum==3.4.0
-pandas==2.3.3
-torch==2.10.0
