@@ -1,0 +1,23 @@
+artifact_path: file:///c:/Users/User/Documents/GitHub/Reto3_MicroRedes/OBJETIVO2/mlruns/285087856303848884/models/m-7cba647369314ad28f1198932bc5cd5a/artifacts
+flavors:
+  python_function:
+    config:
+      device: null
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pytorch
+    pickle_module_name: mlflow.pytorch.pickle_module
+    python_version: 3.10.6
+  pytorch:
+    code: null
+    model_data: data
+    pytorch_version: 2.10.0+cpu
+mlflow_version: 3.10.1
+model_id: m-7cba647369314ad28f1198932bc5cd5a
+model_size_bytes: 27328
+model_uuid: m-7cba647369314ad28f1198932bc5cd5a
+prompts: null
+run_id: e49fecd5ce934248afde395f03b0d524
+utc_time_created: '2026-03-23 05:53:36.231656'
