@@ -27,12 +27,14 @@ class CustomEnvTabular(gym.Env):
         self,
         pymgrid_network,
         horizon=24 * 365,
-        low_soc_penalty=10.0,
+        low_soc_penalty=50.0,
+        low_soc_threshold=0.2
     ):
         super().__init__()
 
         self.mg = pymgrid_network
         self.low_soc_penalty = float(low_soc_penalty)
+        self.low_soc_threshold = float(low_soc_threshold)
 
         # Horizon del episodio
         # len(self.mg) usa la longitud de los módulos temporales de pymgrid
@@ -45,28 +47,25 @@ class CustomEnvTabular(gym.Env):
         # 9 acciones discretas.
         # Se mapean a una acción normalizada para batería.
         # Grid se deja de momento en valor "neutro" fijo.
-        self.action_space = spaces.Discrete(9)
+        self.action_space = spaces.MultiDiscrete([9, 3])
 
-        # IMPORTANTE:
-        # Esta tabla asume que 1.0 y 0.0 son extremos opuestos del
-        # control de batería y 0.5 es una zona intermedia/neutra.
-        # Si en vuestros tests veis que la polaridad está invertida,
-        # solo tendréis que invertir este diccionario.
         self.battery_action_map = {
-            0: 1.00,
-            1: 0.875,
-            2: 0.75,
-            3: 0.625,
-            4: 0.50,
-            5: 0.375,
-            6: 0.25,
-            7: 0.125,
-            8: 0.00,
+            0: -1.0,  # Descarga máxima
+            1: -0.75,
+            2: -0.5,
+            3: -0.25,
+            4:  0.0,  # Mantener
+            5:  0.25,
+            6:  0.5,
+            7:  0.75,
+            8:  1.0   # Carga máxima
         }
-
         # Acción fija para grid en esta primera versión
-        self.grid_action_neutral = 0.50
-
+        self.grid_action_map = {
+            0: 0.0,  # Importar el máximo posible
+            1: 0.5,  # Neutral (Ni importa ni exporta, o lo hace lo mínimo)
+            2: 1.0   # Exportar el máximo posible
+        }
         # ---------------------------------------------------------
         # ESPACIO DE OBSERVACIÓN
         # ---------------------------------------------------------
@@ -140,18 +139,17 @@ class CustomEnvTabular(gym.Env):
     # =========================================================
     def _get_control_dict(self, action):
         """
-        Convierte una acción discreta del agente en una acción normalizada
-        para pymgrid.
-
-        Formato esperado por mg.run():
-            {"battery": [x], "grid": [y]}
+        Traduce la acción MultiDiscrete de Gymnasium al diccionario 
+        de acciones normalizadas que espera pymgrid.
         """
-        if not self.action_space.contains(action):
-            raise ValueError(f"Acción inválida: {action}")
-
-        battery_action = self.battery_action_map[int(action)]
-        grid_action = self.grid_action_neutral
-
+        # action es ahora un array, ej: [4, 1]
+        battery_idx = action[0]
+        grid_idx = action[1]
+        
+        # Obtenemos los valores físicos/normalizados
+        battery_action = self.battery_action_map[battery_idx]
+        grid_action = self.grid_action_map[grid_idx]
+        
         return {
             "battery": [float(battery_action)],
             "grid": [float(grid_action)],
@@ -176,12 +174,15 @@ class CustomEnvTabular(gym.Env):
         # positivo = ingreso / negativo = coste
         reward = float(mg_reward)
 
-        # Coste para análisis, con el mismo convenio que veníais usando:
         cost = -float(mg_reward)
 
-        # Penalización adicional si SoC demasiado bajo
-        if self._get_current_soc() < 0.05:
-            reward -= self.low_soc_penalty
+        # Penalización proporcional si el SoC baja del umbral
+        current_soc = self._get_current_soc()
+        if current_soc < self.low_soc_threshold:
+            violacion = self.low_soc_threshold - current_soc # cuánto nos hemos pasado del límite.
+            penalizacion_aplicada = (violacion / self.low_soc_threshold) * self.low_soc_penalty
+            
+            reward -= penalizacion_aplicada
 
         self.current_step += 1
 
