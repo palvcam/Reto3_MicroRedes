@@ -9,8 +9,8 @@ def convertir_datos_fotovoltaicos(p_nominal_kw=100.0):
     raiz_proyecto = ruta_script.parent.parent
 
     # 3. Definir rutas relativas a la raíz
-    ruta_raw = raiz_proyecto / "OBJETIVO1"/ "data" / "raw" / "pv"
-    ruta_processed = raiz_proyecto / "OBJETIVO1"/ "data" / "processed"
+    ruta_raw = raiz_proyecto / "OBJETIVO1" / "data" / "raw" / "pv"
+    ruta_processed = raiz_proyecto / "OBJETIVO1" /  "data" / "processed"
     
     # Crear carpeta processed si no existe
     ruta_processed.mkdir(parents=True, exist_ok=True)
