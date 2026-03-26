@@ -50,15 +50,15 @@ class CustomEnvTabular(gym.Env):
         self.action_space = spaces.MultiDiscrete([9, 3])
 
         self.battery_action_map = {
-            0: -1.0,  # Descarga máxima
-            1: -0.75,
-            2: -0.5,
-            3: -0.25,
-            4:  0.0,  # Mantener
-            5:  0.25,
-            6:  0.5,
-            7:  0.75,
-            8:  1.0   # Carga máxima
+            0: 0.0,    # Descarga máxima
+            1: 0.125,
+            2: 0.25,
+            3: 0.375,
+            4: 0.5,    # Mantener (Neutro)
+            5: 0.625,
+            6: 0.75,
+            7: 0.875,
+            8: 1.0     # Carga máxima
         }
         # Acción fija para grid en esta primera versión
         self.grid_action_map = {
