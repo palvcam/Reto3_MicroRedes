@@ -1,11 +1,10 @@
-# Aquí definimos el modelo que vamos a usar (este no es el definitivo, hay que cambiarlo)
 import torch
 import torch.nn as nn
 
 
 class PVModel(nn.Module):
     
-    def __init__(self, layers_sizes=[128, 64, 32], input_size=3, dropout=0):
+    def __init__(self, layers_sizes=[128, 64, 32], input_size=9, dropout=0.2):
         super().__init__()
         
         layers = []

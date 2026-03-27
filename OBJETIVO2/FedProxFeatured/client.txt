@@ -22,21 +22,13 @@ import re
 # CONFIG
 # =========================
 
-# FEATURES FINALES (se crean DESPUÉS del split)
+# Características con mayor correlación (baseline2)
 FEATURES = [
     "POA irradiance CMP22 pyranometer (W/m2)",
     "PV module back surface temperature (degC)",
     "k_panel",
     "physical_model",
     "modelo_panel_enc"
-]
-
-# FEATURES BASE (ANTES del split → sin leakage)
-BASE_FEATURES = [
-    "POA irradiance CMP22 pyranometer (W/m2)",
-    "PV module back surface temperature (degC)",
-    "modelo_panel_enc",
-    "panel_id"
 ]
 
 # Grid Search
@@ -47,9 +39,8 @@ LR = 0.001
 # Extraer el modelo de la placa del csv (para el coeficiente de la placa)
 def extraer_modelo(nombre_archivo):
     base = os.path.basename(nombre_archivo).replace(".csv", "")
-    partes = base.split("_")                    # ['parqueA', 'panel1', 'cleaned']
-    panel_id = partes[1] if len(partes) > 1 else base   # 'panel1'
-    match = re.match(r'^([a-zA-Z]+)', panel_id)          # extrae 'panel'
+    panel_id = "_".join(base.split("_")[1:])
+    match = re.match(r'^([a-zA-Z]+)', panel_id)
     return match.group(1) if match else panel_id
 
 
@@ -59,21 +50,20 @@ def extraer_modelo(nombre_archivo):
 class PVClient(fl.client.NumPyClient):
 
     def __init__(self, parque):
-        self.model = PVModel(input_size=len(FEATURES), layers_sizes=[128, 32, 16])
+        self.model = PVModel(input_size=len(FEATURES), layers_sizes=[32, 16])
         self.criterion = nn.MSELoss()
 
         # =========================
         # FEDEX
         # =========================
+
+        # Probabilidades
         self.epoch_probs = np.ones(len(EPOCH_CONFIGS)) / len(EPOCH_CONFIGS)
         self.mu_probs = np.ones(len(MU_CONFIGS)) / len(MU_CONFIGS)
-        k_epochs = len(EPOCH_CONFIGS) 
-        k_mu = len(MU_CONFIGS)
-        self.eta0_epochs = np.sqrt(2 * np.log(k_epochs))
-        self.eta0_mu = np.sqrt(2 * np.log(k_mu)) 
+        self.fedex_lr = 0.1 # Se han probado varios y este funciona bien
+
         self.baseline = None # Este valor es la referencia para MU y epochs, que se calcula con la media exponencial de los losses
-        self.gamma = 0.9 
-        self.loss_history = []
+        self.beta = 0.9 
 
         # =========================
         # CARGA DATOS
@@ -95,9 +85,16 @@ class PVClient(fl.client.NumPyClient):
         df_parque = pd.concat(dfs, ignore_index=True)
 
         # =========================
-        # LIMPIEZA (-9999)
+        # ELIMINAR -9999
         # =========================
-        df_parque = df_parque.replace(-9999, np.nan).dropna()
+        print("\n--- Eliminando valores -9999 ---")
+        initial_size = len(df_parque)
+
+        df_parque = df_parque.replace(-9999, np.nan)
+        df_parque = df_parque.dropna()
+
+        print(f"Filas tras limpieza: {len(df_parque)}")
+        print(f"Eliminadas: {initial_size - len(df_parque)} ({(initial_size - len(df_parque))/initial_size:.2%})")
 
         # =========================
         # ENCODING PANEL
@@ -112,30 +109,11 @@ class PVClient(fl.client.NumPyClient):
             df_parque["panel_id"] = 0
 
         # =========================
-        # FILTRO IRRADIANCIA
-        # =========================
-        df_parque = df_parque[
-            df_parque["POA irradiance CMP22 pyranometer (W/m2)"] > 50
-        ]
-
-        # =========================
-        # SPLIT (SIN LEAKAGE)
-        # =========================
-        train_val_df, test_df = train_test_split(
-            df_parque, test_size=0.2, random_state=42
-        )
-
-        train_df, val_df = train_test_split(
-            train_val_df, test_size=0.2, random_state=42
-        )
-
-        self.test_df= test_df
-        # =========================
-        # CALCULAR k_panel SOLO EN TRAIN
+        # CALCULAR k_panel
         # =========================
         k_por_panel = {}
 
-        for panel_id, df_panel in train_df.groupby("panel_id"):
+        for panel_id, df_panel in df_parque.groupby("panel_id"):
 
             if len(df_panel) < 10:
                 continue # si hay pocos datos se ignora, porque no es fiable
@@ -152,36 +130,46 @@ class PVClient(fl.client.NumPyClient):
 
             k_por_panel[panel_id] = float(-model_k.coef_[0])
 
-        k_global = np.mean(list(k_por_panel.values())) if k_por_panel else 0.004
+        k_global = np.mean(list(k_por_panel.values())) if k_por_panel else 0.004 # si no hay datos se pone el valor genérico 
+
+        df_parque["k_panel"] = df_parque["panel_id"].map(k_por_panel)
+        df_parque["k_panel"] = df_parque["k_panel"].fillna(k_global)
 
         # =========================
-        # APLICAR k_panel
+        # MODELO FÍSICO
         # =========================
-        train_df["k_panel"] = train_df["panel_id"].map(k_por_panel).fillna(k_global)
-        val_df["k_panel"]   = val_df["panel_id"].map(k_por_panel).fillna(k_global)
-        test_df["k_panel"] = test_df["panel_id"].map(k_por_panel).fillna(k_global)
+        df_parque["physical_model"] = (
+            df_parque["POA irradiance CMP22 pyranometer (W/m2)"] *
+            (1 - df_parque["k_panel"] *
+             (df_parque["PV module back surface temperature (degC)"] - 25))
+        )
 
         # =========================
-        # MODELO FÍSICO (SIN LEAKAGE)
+        # FILTRO IRRADIANCIA
         # =========================
-        for df in [train_df, val_df,test_df]:
-            df["physical_model"] = (
-                df["POA irradiance CMP22 pyranometer (W/m2)"] *
-                (1 - df["k_panel"] *
-                 (df["PV module back surface temperature (degC)"] - 25))
-            )
+        print(f"\n--- Filtro irradiancia {parque} ---")
+        size_before = len(df_parque)
+
+        irr_threshold = 50
+        df_parque = df_parque[
+            df_parque["POA irradiance CMP22 pyranometer (W/m2)"] > irr_threshold
+        ]
+
+        print(f"Irradiancia > {irr_threshold}: {len(df_parque)}")
+        print(f"Eliminadas: {size_before - len(df_parque)} ({(size_before - len(df_parque))/size_before:.2%})")
 
         # =========================
-        # INPUT FINAL
+        # INPUT / TARGET
         # =========================
-        X_train = train_df[FEATURES]
-        y_train = train_df["Pmp (W)"]
+        X_p = df_parque[FEATURES]
+        y_p = df_parque["Pmp (W)"]
 
-        X_val = val_df[FEATURES]
-        y_val = val_df["Pmp (W)"]
-
-        X_test = test_df[FEATURES]
-        y_test = test_df["Pmp (W)"]
+        # =========================
+        # SPLIT
+        # =========================
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_p, y_p, test_size=0.2, random_state=42
+        )
 
         # =========================
         # ESCALADO
@@ -191,33 +179,30 @@ class PVClient(fl.client.NumPyClient):
 
         X_train = self.x_scaler.fit_transform(X_train)
         X_val   = self.x_scaler.transform(X_val)
-        X_test   = self.x_scaler.transform(X_test)
 
         y_train = self.y_scaler.fit_transform(y_train.values.reshape(-1, 1))
         y_val   = self.y_scaler.transform(y_val.values.reshape(-1, 1))
-        y_test   = self.y_scaler.transform(y_test.values.reshape(-1, 1))
 
         # =========================
         # TENSORES
         # =========================
+        X_train_t = torch.tensor(X_train, dtype=torch.float32)
+        X_val_t   = torch.tensor(X_val, dtype=torch.float32)
+        y_train_t = torch.tensor(y_train, dtype=torch.float32)
+        y_val_t   = torch.tensor(y_val, dtype=torch.float32)
+
         self.train_loader = DataLoader(
-            TensorDataset(torch.tensor(X_train, dtype=torch.float32),
-                          torch.tensor(y_train, dtype=torch.float32)),
+            TensorDataset(X_train_t, y_train_t),
             batch_size=256,
             shuffle=True
         )
 
         self.val_loader = DataLoader(
-            TensorDataset(torch.tensor(X_val, dtype=torch.float32),
-                          torch.tensor(y_val, dtype=torch.float32)),
+            TensorDataset(X_val_t, y_val_t),
             batch_size=256
         )
 
-        self.test_loader = DataLoader(
-            TensorDataset(torch.tensor(X_test, dtype=torch.float32),
-                          torch.tensor(y_test, dtype=torch.float32)),
-            batch_size=256
-        )
+        print(f"\nCliente {parque}: {len(self.train_loader.dataset)} train | {len(self.val_loader.dataset)} val\n")
 
     # =========================
     # PARAMS
@@ -245,8 +230,6 @@ class PVClient(fl.client.NumPyClient):
 
         self.set_parameters(parameters)
         global_params = [torch.tensor(p.copy(), dtype=torch.float32) for p in parameters]
-        # recibe λₜ del servidor — paper Algorithm 2, página 7
-        lambda_t = config.get("lambda_t", -1.0)
 
         epochs, mu, epoch_idx, mu_idx = self.sample_fedex_config()
         print(f"[FedEx] epochs={epochs}, mu={mu}")
@@ -266,10 +249,8 @@ class PVClient(fl.client.NumPyClient):
 
                 loss.backward()
                 optimizer.step()
-        
-        # =========================
+
         # VALIDACIÓN LOCAL
-        # =========================
         self.model.eval()
         mse = 0
 
@@ -280,36 +261,25 @@ class PVClient(fl.client.NumPyClient):
 
         mse /= len(self.val_loader)
 
-        # =========================
-        # BASELINE (λₜ) — paper Apéndice C.3
-        # =========================
-        if lambda_t < 0:
-        # primera ronda: λₜ aún no disponible
-            grad = 0.0
+        # BASELINE DINÁMICO
+        if self.baseline is None:
+            self.baseline = mse
         else:
-            grad = mse - lambda_t
+            self.baseline = self.beta * self.baseline + (1 - self.beta) * mse
 
-        # =========================
-        # UPDATE FEDEX (schedule agresivo)
-        # =========================
-        eps = 1e-8
+        grad = mse - self.baseline
 
-        eta_epochs = self.eta0_epochs / (abs(grad) + eps)  # ηₜ = √(2 log k) / |∇̃ₜ|
-        eta_mu     = self.eta0_mu     / (abs(grad) + eps)
+        # UPDATE FEDEX
+        self.epoch_probs[epoch_idx] *= np.exp(-self.fedex_lr * grad)
+        self.mu_probs[mu_idx] *= np.exp(-self.fedex_lr * grad)
 
-        self.epoch_probs[epoch_idx] *= np.exp(-eta_epochs * grad)  # θₜ₊₁ = θₜ ⊙ exp(−ηₜ·∇̃)
-        self.mu_probs[mu_idx]       *= np.exp(-eta_mu     * grad)
+        self.epoch_probs /= self.epoch_probs.sum()
+        self.mu_probs /= self.mu_probs.sum()
 
-        self.epoch_probs /= self.epoch_probs.sum()  # renormaliza
-        self.mu_probs    /= self.mu_probs.sum()
-
-        return self.get_parameters({}), len(self.train_loader.dataset), {
-            "val_mse":      mse,
-            "val_samples":  float(len(self.val_loader.dataset)),
-            "fedex_epochs": float(epochs),   # la config sampleada esta ronda
-            "fedex_mu":     float(mu),
+        return self.get_parameters(config={}), len(self.train_loader.dataset), {
+            "val_mse": mse
         }
-    
+
     # =========================
     # EVALUACIÓN
     # =========================
@@ -317,49 +287,33 @@ class PVClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         self.model.eval()
 
-        preds, targets = [], []
+        all_preds = []
+        all_targets = []
 
         with torch.no_grad():
             for X_batch, y_batch in self.val_loader:
-                preds.append(self.model(X_batch))
-                targets.append(y_batch)
+                preds = self.model(X_batch)
+                all_preds.append(preds)
+                all_targets.append(y_batch)
 
-        preds = self.y_scaler.inverse_transform(torch.cat(preds).numpy())
-        targets = self.y_scaler.inverse_transform(torch.cat(targets).numpy())
+        all_preds = torch.cat(all_preds).numpy()
+        all_targets = torch.cat(all_targets).numpy()
 
-        mse = float(((targets - preds) ** 2).mean())
+        all_preds = self.y_scaler.inverse_transform(all_preds)
+        all_targets = self.y_scaler.inverse_transform(all_targets)
+
+        mse = float(((all_targets - all_preds) ** 2).mean())
         rmse = mse ** 0.5
-        r2 = r2_score(targets, preds)
+        r2 = r2_score(all_targets, all_preds)
 
         print(f"MSE: {mse:.4f} | RMSE: {rmse:.4f} | R²: {r2:.4f}")
 
-
-        # =========================
-        # TEST (añadido)
-        # =========================
-        test_preds, test_targets = [], []
-
-        with torch.no_grad():
-            for X, y in self.test_loader:
-                test_preds.append(self.model(X))
-                test_targets.append(y)
-
-        test_preds = self.y_scaler.inverse_transform(torch.cat(test_preds).numpy())
-        test_targets = self.y_scaler.inverse_transform(torch.cat(test_targets).numpy())
-
-        test_mse = float(((test_targets - test_preds) ** 2).mean())
-        test_rmse = test_mse ** 0.5
-        test_r2 = r2_score(test_targets, test_preds)
-
-        return mse, len(self.val_loader.dataset), {
+        return float(mse), len(self.val_loader.dataset), {
             "val_mse": mse,
             "val_rmse": rmse,
-            "val_r2": r2,
-
-            "test_mse": test_mse,
-            "test_rmse": test_rmse,
-            "test_r2": test_r2
+            "val_r2": r2
         }
+
 
 # =========================
 # MAIN
