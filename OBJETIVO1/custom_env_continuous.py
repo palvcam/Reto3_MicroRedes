@@ -25,13 +25,13 @@ class CustomEnvContinuous(gym.Env):
         self,
         pymgrid_network,
         horizon=24 * 365,
-        reward_scale_C=787.0511991711403,
+        reward_scale_C=1.0,
         low_soc_penalty=0.3,
-        low_soc_threshold=0.05,
-        net_load_min=-426.61,
-        net_load_max=38.4,
-        price_min=0.0,
-        price_max=0.30,
+        low_soc_threshold=0.2,
+        net_load_min=-40.64,
+        net_load_max=62.45,
+        price_min=0.0206,
+        price_max=0.42315,
     ):
         super().__init__()
 
@@ -55,35 +55,42 @@ class CustomEnvContinuous(gym.Env):
         # ---------------------------------------------------------
         # ESPACIO DE ACCIONES
         # ---------------------------------------------------------
-        # Una acción continua:
-        #   action[0] in [0,1]
+        # Acción continua simétrica 2D en [-1, 1]:
+        #   action[0] -> batería
+        #   action[1] -> red
         #
-        # Según lo observado en pymgrid:
-        #   1.0 -> descarga fuerte
-        #   0.0 -> carga fuerte
-        #   0.5 -> zona intermedia / casi neutra
+        # Internamente, estas acciones se reescalan a [0, 1] porque
+        # pymgrid.run(..., normalized=True) espera valores normalizados.
+        #
+        # Mapeo interno:
+        #   -1.0 -> 0.0
+        #    0.0 -> 0.5
+        #    1.0 -> 1.0
+        #
+        # La semántica física exacta de 0/0.5/1 para batería y red
+        # debe verificarse empíricamente con tests manuales.
         self.action_space = spaces.Box(
-            low=np.array([0.0], dtype=np.float32),
-            high=np.array([1.0], dtype=np.float32),
+            low=np.array([-1.0, -1.0], dtype=np.float32),
+            high=np.array([1.0, 1.0], dtype=np.float32),
             dtype=np.float32
         )
 
-        # Acción fija para grid en esta versión
-        self.grid_action_neutral = 0.50
+
 
         # ---------------------------------------------------------
         # ESPACIO DE OBSERVACIÓN
         # ---------------------------------------------------------
         # Observación continua:
-        # [net_load_norm, soc, import_price_norm, hour_sin, hour_cos]
+        # [net_load_norm, soc, import_price_norm, hour_sin, hour_cos, day_sin, day_cos]
         #
-        # - net_load_norm: carga neta normalizada aproximadamente a [-1,1]
-        # - soc: en [0,1]
-        # - import_price_norm: precio normalizado aproximadamente a [0,1]
-        # - hour_sin, hour_cos: codificación cíclica de la hora
+        # - net_load_norm: carga neta (load - pv) normalizada a [-1, 1]
+        # - soc: estado de carga de la batería en [0, 1]
+        # - import_price_norm: precio de importación normalizado a [0, 1]
+        # - hour_sin, hour_cos: codificación cíclica de la hora del día
+        # - day_sin, day_cos: codificación cíclica del día del año
         self.observation_space = spaces.Box(
-            low=np.array([-1.5, 0.0, 0.0, -1.0, -1.0], dtype=np.float32),
-            high=np.array([1.5, 1.0, 1.5, 1.0, 1.0], dtype=np.float32),
+            low=np.array([-1.0, 0.0, 0.0, -1.0, -1.0, -1.0, -1.0], dtype=np.float32),
+            high=np.array([ 1.0, 1.0, 1.0,  1.0,  1.0,  1.0,  1.0], dtype=np.float32),
             dtype=np.float32
         )
 
@@ -111,6 +118,7 @@ class CustomEnvContinuous(gym.Env):
     def _normalize_net_load(self, net_load):
         """
         Normaliza net_load usando min-max y lo lleva aproximadamente a [-1, 1].
+        Aplica clipping por seguridad
         """
         denom = self.net_load_max - self.net_load_min
         if denom <= 0:
@@ -118,24 +126,31 @@ class CustomEnvContinuous(gym.Env):
 
         x01 = (net_load - self.net_load_min) / denom
         x11 = 2.0 * x01 - 1.0
-        return float(x11)
+        return float(np.clip(x11, -1.0, 1.0))
 
     def _normalize_price(self, price):
         """
-        Normaliza el precio aproximadamente a [0,1].
+        Normalizar price a [0, 1] mediante min-max.
+        Aplica clipping por seguridad. 
         """
         denom = self.price_max - self.price_min
         if denom <= 0:
             return 0.0
-
         x = (price - self.price_min) / denom
-        return float(x)
+        return float(np.clip(x, 0.0, 1.0))
 
     def _encode_hour_cyclic(self, hour):
         """
         Codificación cíclica de la hora del día.
         """
         angle = 2.0 * np.pi * hour / 24.0
+        return float(np.sin(angle)), float(np.cos(angle))
+
+    def _encode_day_of_year_cyclic(self, day_of_year):
+        """
+        Codificación cíclica del día del año.
+        """
+        angle = 2.0 * np.pi * day_of_year / 365.0
         return float(np.sin(angle)), float(np.cos(angle))
 
     # =========================================================
@@ -146,11 +161,14 @@ class CustomEnvContinuous(gym.Env):
         pv_raw = self._get_current_pv()
         net_load_raw = load_raw - pv_raw
 
-        soc_raw = self._get_current_soc()
+        soc_raw = np.clip(self._get_current_soc(), 0.0, 1.0)
         price_raw = self._get_current_import_price()
 
         hour = self.current_step % 24
         hour_sin, hour_cos = self._encode_hour_cyclic(hour)
+
+        day_of_year = (self.current_step // 24) % 365
+        day_sin, day_cos = self._encode_day_of_year_cyclic(day_of_year)
 
         net_load_norm = self._normalize_net_load(net_load_raw)
         price_norm = self._normalize_price(price_raw)
@@ -161,6 +179,8 @@ class CustomEnvContinuous(gym.Env):
             price_norm,
             hour_sin,
             hour_cos,
+            day_sin,
+            day_cos
         ], dtype=np.float32)
 
         return obs
@@ -178,33 +198,49 @@ class CustomEnvContinuous(gym.Env):
     # =========================================================
     # ACCIÓN
     # =========================================================
+    def _map_symmetric_action_to_unit_interval(self, x):
+            """
+            Mapea una acción de [-1, 1] a [0, 1].
+            """
+            x = float(np.clip(x, -1.0, 1.0))
+            return 0.5 * (x + 1.0)
+
     def _get_control_dict(self, action):
         """
-        Convierte una acción continua del agente en una acción normalizada
-        para pymgrid.
+        Convierte una acción continua simétrica del agente (shape (2,))
+        en una acción normalizada en [0, 1] para pymgrid.
 
-        action: np.array shape (1,)
-        mg.run(..., normalized=True) espera:
-            {"battery": [x], "grid": [y]}
+        action:
+            action[0] -> batería, en [-1, 1]
+            action[1] -> red, en [-1, 1]
+
+        pymgrid.run(..., normalized=True) espera:
+            {"battery": [x], "grid": [y]} con x,y en [0,1]
         """
         action = np.asarray(action, dtype=np.float32).reshape(-1)
 
-        if action.shape != (1,):
-            raise ValueError(f"Se esperaba acción con shape (1,), recibido {action.shape}")
+        if action.shape != (2,):
+            raise ValueError(f"Se esperaba acción con shape (2,), recibido {action.shape}")
 
-        battery_action = float(np.clip(action[0], 0.0, 1.0))
-        grid_action = float(self.grid_action_neutral)
+        battery_action = self._map_symmetric_action_to_unit_interval(action[0])
+        grid_action = self._map_symmetric_action_to_unit_interval(action[1])
 
         return {
             "battery": [battery_action],
             "grid": [grid_action],
         }
 
+
     # =========================================================
     # STEP
     # =========================================================
     def step(self, action):
+        # Última observación válida antes de aplicar la acción
+        last_valid_observation = self._get_obs()
+        
+
         control_dict = self._get_control_dict(action)
+        soc_before = self._get_current_soc()
 
         mg_obs, mg_reward, mg_done, mg_info = self.mg.run(
             control_dict,
@@ -213,24 +249,45 @@ class CustomEnvContinuous(gym.Env):
 
         raw_reward = float(mg_reward)
         cost = -raw_reward
-
-        # Reward normalizada
         reward = raw_reward / self.reward_scale_C
 
-        # Penalización suave si SoC demasiado bajo
-        current_soc = self._get_current_soc()
-        if current_soc < self.low_soc_threshold:
-            soc_deficit_ratio = (self.low_soc_threshold - current_soc) / self.low_soc_threshold
-            reward -= self.low_soc_penalty * soc_deficit_ratio
+        terminated = bool(mg_done)
+
+        current_load = None
+        current_pv = None
+        current_import_price = None
+        current_export_price = None
+        current_soc = None
+        terminal_observation = None
 
         self.current_step += 1
 
-        terminated = bool(mg_done)
+        if not terminated:
+            obs = self._get_obs()
+
+            current_load = self._get_current_load()
+            current_pv = self._get_current_pv()
+            current_import_price = self._get_current_import_price()
+            current_export_price = self._get_current_export_price()
+            current_soc = self._get_current_soc()
+        else:
+            # Si pymgrid termina de forma natural, no asumimos que exista
+            # una "siguiente observación" física válida.
+            obs = np.zeros(self.observation_space.shape, dtype=np.float32)
+            current_soc = soc_before
+            terminal_observation = last_valid_observation.copy()
+
+        low_soc_penalty_applied = 0.0
+        if (current_soc is not None) and (current_soc < self.low_soc_threshold):
+            soc_deficit_ratio = (self.low_soc_threshold - current_soc) / self.low_soc_threshold
+            low_soc_penalty_applied = self.low_soc_penalty * soc_deficit_ratio
+            reward -= low_soc_penalty_applied
+
+        
         truncated = bool(self.current_step >= self.horizon)
 
-        if not (terminated or truncated):
-            obs = self._get_obs()
-        else:
+        if truncated and not terminated:
+            terminal_observation = obs.copy()
             obs = np.zeros(self.observation_space.shape, dtype=np.float32)
 
         info = {
@@ -241,12 +298,18 @@ class CustomEnvContinuous(gym.Env):
             "mg_obs": mg_obs,
             "mg_info": mg_info,
             "control_dict": control_dict,
-            "current_load": self._get_current_load() if not (terminated or truncated) else None,
-            "current_pv": self._get_current_pv() if not (terminated or truncated) else None,
-            "current_import_price": self._get_current_import_price() if not (terminated or truncated) else None,
-            "current_export_price": self._get_current_export_price() if not (terminated or truncated) else None,
-            "soc": self._get_current_soc() if not (terminated or truncated) else None,
+            "current_load": current_load,
+            "current_pv": current_pv,
+            "current_import_price": current_import_price,
+            "current_export_price": current_export_price,
+            "soc_before": soc_before,
+            "soc_after": current_soc,
+            "soc": current_soc,
+            "low_soc_penalty_applied": low_soc_penalty_applied,
         }
+
+        if terminal_observation is not None:
+            info["terminal_observation"] = terminal_observation
 
         return obs, reward, terminated, truncated, info
 
@@ -261,5 +324,4 @@ class CustomEnvContinuous(gym.Env):
 
         obs = self._get_obs()
         info = self._get_info()
-
         return obs, info

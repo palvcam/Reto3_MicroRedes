@@ -10,7 +10,8 @@ Thumbs.db
 venv/
 .env/
 .venv/
-micro_env/ 
+micro_env/
+reto3_env/
 
 # Archivos temporales
 *.tmp
