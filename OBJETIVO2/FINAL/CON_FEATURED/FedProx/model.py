@@ -1,4 +1,3 @@
-# Aquí definimos el modelo que vamos a usar (este no es el definitivo, hay que cambiarlo)
 import torch
 import torch.nn as nn
 

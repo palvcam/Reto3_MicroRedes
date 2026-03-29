@@ -31,7 +31,7 @@ GAMMA = 0.9                          # Factor descuento EMA baseline λ_t (Eq. C
 # =========================
 # UTILIDAD - Persistencia mejor modelo global
 # =========================
-def save_model(parameters, path="best_model.pth"):
+def save_model(parameters, path="best_model_EX.pth"):
     model = PVModel(input_size=5, layers_sizes=[128, 32, 16])  # Crea modelo vacío (5 feats)
     
     # Convierte parámetros Flower → numpy arrays
