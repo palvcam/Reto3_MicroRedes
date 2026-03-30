@@ -12,11 +12,17 @@ ruta_padre = Path(__file__).parent.parent
 sys.path.append(str(ruta_padre))
 
 # 1. IMPORTAR TUS CLASES Y FUNCIONES
-from custom_env_continuous import CustomEnvContinuous
+from custom_env_continuous_v2 import CustomEnvContinuousv2
 from pymgrid import Microgrid
 from pymgrid.modules import GridModule, BatteryModule, LoadModule, RenewableModule
 
 from stable_baselines3.common.callbacks import EvalCallback
+
+import warnings
+
+# Esto filtrará los mensajes molestos del gym antiguo
+warnings.filterwarnings("ignore", message=".*Gym has been unmaintained.*")
+warnings.filterwarnings("ignore", message=".*Training and eval env are not of the same type.*")
 
 # =====================================================================
 # CALLBACK PERSONALIZADO PARA OPTUNA
@@ -28,7 +34,7 @@ class TrialEvalCallback(EvalCallback):
         eval_env,
         trial: optuna.Trial,
         n_eval_episodes: int = 5,
-        eval_freq: int = 43800,
+        eval_freq: int = 10950,
         deterministic: bool = True,
         verbose: int = 0,
         best_model_save_path: str = None,
@@ -112,11 +118,11 @@ def build_microgrid():
 def make_env():
     """Instancia tu entorno custom con los parámetros calibrados."""
     mg = build_microgrid()
-    return CustomEnvContinuous(
+    return CustomEnvContinuousv2(
         pymgrid_network=mg,
         horizon=8760,
-        reward_scale_C=695.39,      # ¡El valor que calculamos!
-        low_soc_penalty=0.1,        # ANTES Castigo severo (2.0),rebajamos para empezar
+        reward_scale_C=253.59,      # ¡El valor que calculamos!
+        low_soc_penalty=0.5,       
         low_soc_threshold=0.20,
         net_load_min=-40.64,
         net_load_max=62.45,
@@ -130,9 +136,10 @@ def make_env():
 def sample_ppo_params(trial: optuna.Trial):
     """Define el espacio de búsqueda de hiperparámetros para PPO."""
     
-    # Batch size debe ser divisor de n_steps. Limitamos a opciones seguras.
-    n_steps = trial.suggest_categorical("n_steps", [2048, 4096, 8192])
-    batch_size = trial.suggest_categorical("batch_size", [64, 128, 256, 512])
+    # Batch size debe ser divisor de (n_steps * n_envs). Limitamos a opciones seguras.
+    # Como n_envs = 4, opciones de n_steps más moderadas (para no esperar demasiado antes de actualizar)
+    n_steps = trial.suggest_categorical("n_steps", [512, 1024, 2048])
+    batch_size = trial.suggest_categorical("batch_size", [64, 128, 256])
     
     return {
         "n_steps": n_steps,
@@ -151,7 +158,7 @@ def objective(trial: optuna.Trial):
     ruta_script = Path(__file__).parent
 
     # Carpeta logs_PPO dentro del directorio del script
-    ruta_logs = ruta_script / "logs" / "logs_optuna_PPO"
+    ruta_logs = ruta_script / "logs" / "logs_optuna_PPO_v2"
 
     # Carpeta específica para este trial
     log_dir = ruta_logs / f"trial_{trial.number}"
@@ -171,7 +178,7 @@ def objective(trial: optuna.Trial):
     # El callback TrialEvalCallback espera un solo entorno para hacer las validaciones correctas.
     eval_env = make_vec_env(make_env, n_envs=1)
     
-    tensorboard_dir = ruta_script / "tensorboard_logs"
+    tensorboard_dir = ruta_script /"logs"/ "tensorboard_logs_v2"
     # 4. Crear el modelo PPO
     model = PPO(
         "MlpPolicy",
@@ -189,7 +196,7 @@ def objective(trial: optuna.Trial):
         best_model_save_path=log_dir,
         log_path=log_dir,
         n_eval_episodes=1,     # Evaluar durante 1 episodio (1 año entero)
-        eval_freq=43800, # Evalúa cada 5 años en lugar de cada año
+        eval_freq=10950, # Evalúa cada 5 años en lugar de cada año
         deterministic=True
     )
     
@@ -221,9 +228,9 @@ if __name__ == "__main__":
     print("Iniciando la optimización con Optuna...")
     
     # Crear o conectar a la base de datos persistente SQLite
-    study_name = "ppo_microgrid_study"
+    study_name = "ppo_microgrid_study_v2"
     ruta_script = Path(__file__).parent
-    storage_path = ruta_script / "optuna_microgrid.db"
+    storage_path = ruta_script / "optuna_microgrid_v2.db"
 
     storage_name = f"sqlite:///{storage_path}"
     
@@ -237,7 +244,7 @@ if __name__ == "__main__":
         # - n_warmup_steps=8760*5: No poda a ningún agente antes de que haya entrenado al menos 5 años.
         pruner=optuna.pruners.MedianPruner(
             n_startup_trials=5, 
-            n_warmup_steps= 5
+            n_warmup_steps= 3
         )
     )
     
