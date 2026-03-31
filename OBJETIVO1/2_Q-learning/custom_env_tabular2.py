@@ -160,14 +160,20 @@ class CustomEnvTabular(gym.Env):
         # 3. CÁLCULOS FÍSICOS A POSTERIORI (Lo que realmente ocurrió)
         soc_nuevo = self._get_current_soc()
 
-        # Extraemos la realidad directamente de los bornes de Pymgrid (¡ya incluye eficiencias!)
-        carga_bat = float(self.mg.modules["battery"][0].current_charge)
-        descarga_bat = float(self.mg.modules["battery"][0].current_discharge)
-        importacion_red = float(self.mg.modules["grid"][0].current_import)
-        exportacion_red = float(self.mg.modules["grid"][0].current_export)
-        
-        # Calculamos el balance neto para monitorización
-        p_red_real = importacion_red - exportacion_red
+        # Variación de energía química real en la batería (kWh). 
+        # Lo que realmente subió/bajó el nivel teniendo en cuenta eficiencias.
+        delta_energia_bat = (soc_nuevo - soc_previo) * self.battery_max_capacity
+        carga_bat = max(0, delta_energia_bat)
+        descarga_bat = max(0, -delta_energia_bat)
+
+        # Reconstruimos la orden eléctrica exacta que le dimos a la red
+        # (Net Load - Acción de la batería)
+        battery_kw = self.battery_action_map[action] * 50.0  
+        p_red_real = net_load - battery_kw
+
+        # Separamos el balance de red en métricas limpias
+        importacion_red = max(0, p_red_real)
+        exportacion_red = max(0, -p_red_real)
 
         # 4. RECOMPENSAS Y PENALIZACIONES
         reward = float(mg_reward)
