@@ -48,15 +48,15 @@ class CustomEnvTabular(gym.Env):
         self.action_space = spaces.Discrete(9)
 
         self.battery_action_map = {
-            0: 0.0,    # Descarga máxima
-            1: 0.125,
-            2: 0.25,
-            3: 0.375,
-            4: 0.5,    # Mantener (Neutro)
-            5: 0.625,
-            6: 0.75,
-            7: 0.875,
-            8: 1.0     # Carga máxima
+            0: 1.0,    # Descarga máxima
+            1: 0.75,
+            2: 0.5,
+            3: 0.25,
+            4: 0.0,    # Mantener (Neutro)
+            5: -0.25,
+            6: -0.5,
+            7: -0.75,
+            8: -1.0     # Carga máxima
         }
         
         # ---------------------------------------------------------
@@ -73,21 +73,22 @@ class CustomEnvTabular(gym.Env):
         ])
 
     def _get_current_load(self):
-        return float(self.mg.modules.load.item().current_load)
+        # Entramos en 'load' y cogemos el primer módulo [0]
+        return float(self.mg.modules["load"][0].current_load)
 
     def _get_current_pv(self):
-        return float(self.mg.pv.item().current_renewable)
+        # ¡Ojo! La llave es 'renewable', no 'pv'
+        return float(self.mg.modules["renewable"][0].current_renewable)
 
     def _get_current_soc(self):
-        return float(self.mg.battery.item().soc)
+        return float(self.mg.modules["battery"][0].soc)
 
     def _get_current_import_price(self):
-        # import_price devuelve array: [actual, forecast...]
-        return float(self.mg.grid.item().import_price[0])
+        return float(self.mg.modules["grid"][0].import_price[0])
 
     def _get_current_export_price(self):
-        return float(self.mg.grid.item().export_price[0])
-
+        return float(self.mg.modules["grid"][0].export_price[0])
+    
     def _get_obs(self):
         """Lee el estado actual desde pymgrid y lo discretiza."""
         load_raw = self._get_current_load()
@@ -119,57 +120,71 @@ class CustomEnvTabular(gym.Env):
         }
 
     def _get_control_dict(self, action):
-        """Traduce la acción discreta al diccionario que espera pymgrid.     """
-       
-        battery_action = self.battery_action_map[action]        
+        """
+        El agente solo decide la acción de la batería. 
+        El entorno (física) adapta la red como flex module automáticamente.
+        """
+        # 1. El agente decide sobre la batería (ej. -1.0 a 1.0)
+        battery_action_norm = self.battery_action_map[action]
+        battery_kw = battery_action_norm * 50.0  # max_charge/discharge
+        
+        # 2. Física: ¿Cuánta energía necesita/sobra en el edificio?
+        net_load_kw = self._get_current_load() - self._get_current_pv()
+        
+        # 3. La red se ADAPTA a la demanda restante (Actúa como Flex)
+        p_red_kw = net_load_kw - battery_kw
+        
+        # 4. Le damos a Pymgrid las órdenes explícitas porque su arquitectura lo exige
         return {
-            "battery": [float(battery_action)],
-            "grid": [0.5]  # la física se encargará de calcular lo que realmente se importa/exporta según el balance de la red
+            "battery": [float(battery_kw)],
+            "grid": [float(p_red_kw)]
         }
 
     def step(self, action):
-        """Avanza la simulación un paso y extrae la física real de la red."""
+        """Avanza la simulación un paso y extrae la física real para monitorización."""
         
-        # 1. ESTADO PREVIO (Para cálculos físicos)
-        soc_previo  = self._get_current_soc()
+        # 1. GUARDAR ESTADO PREVIO (Para calcular qué hizo la física realmente)
+        soc_previo = self._get_current_soc()
         current_load = self._get_current_load()
         current_pv = self._get_current_pv()
         net_load = current_load - current_pv
 
-        # 2. EJECUTAR ACCIÓN
+        # 2. EJECUTAR ACCIÓN 
+        # (Solo mandamos la batería, Pymgrid usa la red como Flex Module automáticamente)
         control_dict = self._get_control_dict(action)
         mg_obs, mg_reward, mg_done, mg_info = self.mg.run(
             control_dict,
-            normalized=True
+            normalized=False
         )
 
-        # 3. CÁLCULOS DE LA RED REAL (Ecuación de balance)
+        # 3. CÁLCULOS FÍSICOS A POSTERIORI (Lo que realmente ocurrió)
         soc_nuevo = self._get_current_soc()
 
-        # Variación de energía en la batería (kWh)
+        # Variación de energía química real en la batería (kWh). 
+        # Lo que realmente subió/bajó el nivel teniendo en cuenta eficiencias.
         delta_energia_bat = (soc_nuevo - soc_previo) * self.battery_max_capacity
+        carga_bat = max(0, delta_energia_bat)
+        descarga_bat = max(0, -delta_energia_bat)
 
-        # Balance de la red: Lo que falta del edificio + lo que entra/sale de la batería
-        p_red_real = net_load + delta_energia_bat
+        # Reconstruimos la orden eléctrica exacta que le dimos a la red
+        # (Net Load - Acción de la batería)
+        battery_kw = self.battery_action_map[action] * 50.0  
+        p_red_real = net_load - battery_kw
 
-        # Clasificamos la acción de la red real
-        tolerancia = 0.05 # Margen para errores de coma flotante
-        if p_red_real > tolerancia:
-            accion_red_real = 0 # Importar de la red
-        elif p_red_real < -tolerancia:
-            accion_red_real = 2 # Exportar a la red
-        else:
-            accion_red_real = 1 # Neutro
+        # Separamos el balance de red en métricas limpias
+        importacion_red = max(0, p_red_real)
+        exportacion_red = max(0, -p_red_real)
 
-        # 4. RECOMPENSAS
+        # 4. RECOMPENSAS Y PENALIZACIONES
         reward = float(mg_reward)
         cost = -float(mg_reward)
 
         if soc_nuevo < self.low_soc_threshold:
-                violacion = self.low_soc_threshold - soc_nuevo
-                penalizacion_aplicada = (violacion / self.low_soc_threshold) * self.low_soc_penalty
-                reward -= penalizacion_aplicada
+            violacion = self.low_soc_threshold - soc_nuevo
+            penalizacion_aplicada = (violacion / self.low_soc_threshold) * self.low_soc_penalty
+            reward -= penalizacion_aplicada
 
+        # 5. ACTUALIZAR PASO Y ESTADO
         self.current_step += 1
         terminated = bool(mg_done)
         truncated = bool(self.current_step >= self.horizon)
@@ -179,24 +194,26 @@ class CustomEnvTabular(gym.Env):
         else:
             obs = np.array([0, 0, 0, 0], dtype=np.int32)
 
+        # 6. GUARDAR TODA LA INFORMACIÓN DETALLADA EN INFO
         info = {
-            "cost": cost,
-            "mg_reward": float(mg_reward),
-            "mg_done": bool(mg_done),
-            "mg_obs": mg_obs,
-            "mg_info": mg_info,
-            "control_dict": control_dict,
-            "curren_load": current_load,
-            "current_pv": current_pv,
+            "step": self.current_step,
+            "cost_eur": cost,                     # Gasto económico real en este paso
+            "reward_rl": reward,                  # Recompensa que recibe el algoritmo (con penalizaciones)
+            "soc": soc_nuevo,                     # % de batería
+            "load_kw": current_load,              # Consumo del edificio
+            "pv_kw": current_pv,                  # Generación solar
+            "net_load_kw": net_load,              # Carga neta (Load - PV)
+            "bat_charge_kw": carga_bat,           # Lo que la batería CARGÓ realmente
+            "bat_discharge_kw": descarga_bat,     # Lo que la batería DESCARGÓ realmente
+            "grid_import_kw": importacion_red,    # Lo que se COMPRÓ de la red
+            "grid_export_kw": exportacion_red,    # Lo que se VENDIÓ a la red
+            "grid_balance_kw": p_red_real,        # Balance total (Positivo=Import, Negativo=Export)
+            "action_chosen": action,               # La acción discreta (0-8) que eligió el agente
             "current_import_price": self._get_current_import_price(),
-            "current_export_price": self._get_current_export_price(),
-            "soc": soc_nuevo,
-            "accion_red_real": accion_red_real,
-            "p_red_kw": p_red_real
+            "current_export_price": self._get_current_export_price()
         }
 
         return obs, reward, terminated, truncated, info
-
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
