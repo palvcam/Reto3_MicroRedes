@@ -218,24 +218,70 @@ class PVClient(fl.client.NumPyClient):
         val_loss /= len(self.val_loader)
         val_preds = torch.cat(val_preds).flatten()
         val_targets = torch.cat(val_targets).flatten()
-
         val_rmse = torch.sqrt(torch.mean((val_preds - val_targets)**2)).item()
-
         ss_res = torch.sum((val_targets - val_preds)**2)
         ss_tot = torch.sum((val_targets - val_targets.mean())**2)
         val_r2 = (1 - ss_res / ss_tot).item() if ss_tot > 0 else 0.0
 
-        return (
-            self.get_parameters({}),
-            len(self.train_loader.dataset),
-            {
-                "val_mse": val_loss,
-                "val_mse_before": before_loss,
-                "val_rmse": val_rmse,
-                "val_r2": val_r2,
-                "val_samples": float(len(self.val_loader.dataset)),
-            },
-        )
+        # Calcular métricas de test
+        test_loss, test_preds, test_targets = 0.0, [], []
+        with torch.no_grad():
+            for X_batch, y_batch in self.test_loader:
+                pred = self.model(X_batch)
+                test_loss += self.criterion(pred, y_batch).item()
+                test_preds.append(pred.cpu())
+                test_targets.append(y_batch.cpu())
+        test_loss    /= len(self.test_loader)
+        test_preds    = torch.cat(test_preds).flatten()
+        test_targets  = torch.cat(test_targets).flatten()
+        test_rmse     = torch.sqrt(torch.mean((test_preds - test_targets)**2)).item()
+        test_ss_res   = torch.sum((test_targets - test_preds)**2)
+        test_ss_tot   = torch.sum((test_targets - test_targets.mean())**2)
+        test_r2       = (1 - test_ss_res / test_ss_tot).item() if test_ss_tot > 0 else 0.0
+
+        # Métricas de train
+        train_loss_log, train_preds_log, train_targets_log = 0.0, [], []
+        with torch.no_grad():
+            for X_batch, y_batch in self.train_loader:
+                pred = self.model(X_batch)
+                train_loss_log += self.criterion(pred, y_batch).item()
+                train_preds_log.append(pred.cpu())
+                train_targets_log.append(y_batch.cpu())
+        train_loss_log   /= len(self.train_loader)
+        train_preds_log   = torch.cat(train_preds_log).flatten()
+        train_targets_log = torch.cat(train_targets_log).flatten()
+        train_rmse     = torch.sqrt(torch.mean((train_preds_log - train_targets_log)**2)).item()
+        ss_res_tr = torch.sum((train_targets_log - train_preds_log)**2)
+        ss_tot_tr = torch.sum((train_targets_log - train_targets_log.mean())**2)
+        train_r2_log = (1 - ss_res_tr / ss_tot_tr).item() if ss_tot_tr > 0 else 0.0
+
+        y_std  = self.y_scaler.scale_[0]
+        real_train_mse = train_loss_log * (y_std ** 2)
+        real_train_rmse = train_rmse * y_std
+        real_val_mse   = val_loss  * (y_std ** 2)
+        real_val_rmse  = val_rmse  * y_std
+        real_test_mse  = test_loss * (y_std ** 2)
+        real_test_rmse = test_rmse * y_std
+        
+        print(f"\n{'='*50}")
+        print(f"  TRAIN  | MSE: {real_train_mse:.4f} | RMSE: {real_train_rmse:.4f} | R²: {train_r2_log:.4f}")
+        print(f"  VAL    | MSE: {real_val_mse:.4f}  | RMSE: {real_val_rmse:.4f} | R²: {val_r2:.4f}")
+        print(f"  TEST   | MSE: {real_test_mse:.4f}  | RMSE: {real_test_rmse:.4f} | R²: {test_r2:.4f}")
+        print(f"{'='*50}\n")
+        # Devolver pesos actualizados, número de muestras y métricas al servidor
+        # FedEx usa val_mse_before y val_mse para calcular la mejora de cada config
+        return (self.get_parameters({}),
+                len(self.train_loader.dataset),
+                {
+                    "val_mse":        val_loss,
+                    "val_mse_before": before_loss,
+                    "val_rmse":       val_rmse,
+                    "val_r2":         val_r2,
+                    "val_samples":    float(len(self.val_loader.dataset)),
+                    "test_mse":       test_loss,
+                    "test_rmse":      test_rmse,
+                    "test_r2":        test_r2,
+                })
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
@@ -247,23 +293,42 @@ class PVClient(fl.client.NumPyClient):
                 preds.append(self.model(X_batch))
                 targets.append(y_batch)
 
-        preds = self.y_scaler.inverse_transform(torch.cat(preds).numpy())
+        preds   = self.y_scaler.inverse_transform(torch.cat(preds).numpy())
         targets = self.y_scaler.inverse_transform(torch.cat(targets).numpy())
 
-        mse = float(((targets - preds) ** 2).mean())
+        mse  = float(((targets - preds) ** 2).mean())
         rmse = mse ** 0.5
-        r2 = float(r2_score(targets, preds))
+        r2   = float(r2_score(targets, preds))
+
+        test_preds, test_targets = [], []
+        with torch.no_grad():
+            for X, y in self.test_loader:
+                test_preds.append(self.model(X))
+                test_targets.append(y)
+
+        test_preds   = self.y_scaler.inverse_transform(torch.cat(test_preds).numpy())
+        test_targets = self.y_scaler.inverse_transform(torch.cat(test_targets).numpy())
+
+        test_mse  = float(((test_targets - test_preds) ** 2).mean())
+        test_rmse = test_mse ** 0.5
+        test_r2   = float(r2_score(test_targets, test_preds))
 
         return mse, len(self.val_loader.dataset), {
-            "val_mse": mse,
-            "val_rmse": rmse,
-            "val_r2": r2,
+            "val_mse":   mse,
+            "val_rmse":  rmse,
+            "val_r2":    r2,
+            "test_mse":  test_mse,
+            "test_rmse": test_rmse,
+            "test_r2":   test_r2,
         }
 
 if __name__ == "__main__":
-    parque = sys.argv[1]
-
-    fl.client.start_numpy_client(
-        server_address=SERVER_ADDRESS,
-        client=PVClient(parque=parque)
-    )
+    parque = sys.argv[1] # Nombre del parque pasado como argumento
+    try:
+        fl.client.start_numpy_client(
+            server_address=SERVER_ADDRESS, # Dirección del servidor federado
+            client=PVClient(parque=parque)
+        )
+    except Exception as e:
+        print(f"[Cliente {parque}] Conexión cerrada: {e}")
+        print("Entrenamiento completado.")

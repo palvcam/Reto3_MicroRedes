@@ -8,8 +8,9 @@ from flwr.server.strategy import FedAvg
 from flwr.server.superlink.fleet.grpc_bidi.grpc_server import start_grpc_server
 from flwr.common import GetParametersIns, FitIns, EvaluateIns
 import matplotlib.pyplot as plt
+import time
 
-history = {"round": [], "mse_val": [], "rmse_val": [], "r2_val": []} # Diccionario que acumula las métricas globales de cada ronda
+history = {"round": [], "mse_val": [], "rmse_val": [], "r2_val": [], "mse_test": [], "rmse_test": [], "r2_test": []} # Diccionario que acumula las métricas globales de cada ronda
 
 # Agrega las métricas de los 3 clientes en una métrica global ponderada por número de muestras
 def fedex_aggregate_metrics(metrics):
@@ -17,12 +18,20 @@ def fedex_aggregate_metrics(metrics):
     mse_val  = sum(n * m["val_mse"]  for n, m in metrics) / total_samples
     rmse_val = sum(n * m["val_rmse"] for n, m in metrics) / total_samples
     r2_val   = sum(n * m["val_r2"]   for n, m in metrics) / total_samples
+
+    mse_test  = sum(n * m["test_mse"]  for n, m in metrics) / total_samples
+    rmse_test = sum(n * m["test_rmse"] for n, m in metrics) / total_samples
+    r2_test   = sum(n * m["test_r2"]   for n, m in metrics) / total_samples
     # Se guardan las métricas en el historial
     history["round"].append(len(history["round"]) + 1) 
     history["mse_val"].append(mse_val)
     history["rmse_val"].append(rmse_val)
     history["r2_val"].append(r2_val)
+    history["mse_test"].append(mse_test)
+    history["rmse_test"].append(rmse_test)
+    history["r2_test"].append(r2_test)
     print(f"\nGLOBAL R{len(history['round'])} VAL: MSE={mse_val:.4f}  RMSE={rmse_val:.4f}  R2={r2_val:.4f}")
+    print(f"\nGLOBAL R{len(history['round'])} TEST: MSE={mse_test:.4f}  RMSE={rmse_test:.4f}  R2={r2_test:.4f}")
     return {"mse_val": mse_val, "rmse_val": rmse_val, "r2_val": r2_val}
 
 # Define cómo el servidor va a agregar los modelos de los clientes
@@ -145,6 +154,10 @@ if __name__ == "__main__":
     ADDRESS    = "0.0.0.0:8080" # Dirección del servidor
     MAX_MSG    = 1024 * 1024 * 1024 # Tamaño máximo de mensaje: 1GB
 
+    ## TIEMPO
+    round_times = []
+    total_start = time.time()
+
     # Inicializar gestor de clientes
     client_manager = SimpleClientManager()
 
@@ -176,15 +189,20 @@ if __name__ == "__main__":
     # Usar diferencia before/after como señal en lugar del valor absoluto
     for rnd in range(NUM_ROUNDS):
         print(f"\n=== Round {rnd + 1}/{NUM_ROUNDS} ===")
+        round_start = time.time()
         fedex.step() # Una ronda federada completa: entrenar + agregar + actualizar FedEx
         # Entropía: alta = FedEx explorando, baja = FedEx convergiendo a mejor config
         # MLE: probabilidad de la mejor config — sube cuando FedEx converge
-        print(f"  Entropy: {fedex.trace('entropy')[-1]:.4f}  MLE: {fedex.trace('mle')[-1]:.4f}")
+        round_time = time.time() - round_start
+        round_times.append(round_time)
+        print(f"  Tiempo ronda: {round_time:.1f}s")
 
-    # Evaluación final con la mejor configuración encontrada por FedEx
-    print("\n=== Evaluación final ===")
-    result = fedex.test(mle=True) # mle=True = usar la config más probable
-    print(f"Global: {result['global']:.4f}  Refine: {result['refine']:.4f}")
+    total_time = time.time() - total_start
+    print(f"\nTiempo total entrenamiento: {total_time:.1f}s  ({total_time/60:.1f} min)")
+    print(f"Tiempo medio por ronda: {np.mean(round_times):.1f}s ± {np.std(round_times):.1f}s")
+
+    # Mejor configuración encontrada por FedEx
+    fedex.test(mle=True) # mle=True = usar la config más probable
     best = fedex.sample(mle=True) # Imprimir la mejor configuración encontrada
     print(f"\nMejor config: epochs={best['epochs']}  mu={best['mu']}")
     grpc_server.stop(grace=3000) # Parar el servidor
@@ -194,8 +212,9 @@ if __name__ == "__main__":
     # =========================
     rounds = history["round"]
 
+    ## VAL
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle("Evolución métricas globales — Aprendizaje Federado FedEx", fontsize=14)
+    fig.suptitle("Evolución métricas globales VALIDACIÓN", fontsize=14)
 
     # MSE
     axes[0].plot(rounds, history["mse_val"], marker="o", color="steelblue", linewidth=2)
@@ -220,5 +239,37 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("evolucion_metricas.png", dpi=150, bbox_inches="tight")
-    print("Gráfica guardada en evolucion_metricas.png")
+    plt.savefig("evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    plt.show()
+    print("Gráfica guardada en evolucion_metricas (validaión).png")
+
+    ### TEST
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle("Evolución métricas globales TEST", fontsize=14)
+
+    # MSE
+    axes[0].plot(rounds, history["mse_test"], marker="o", color="steelblue", linewidth=2)
+    axes[0].set_title("MSE (test)")
+    axes[0].set_xlabel("Ronda")
+    axes[0].set_ylabel("MSE")
+    axes[0].grid(True, alpha=0.3)
+
+    # RMSE
+    axes[1].plot(rounds, history["rmse_test"], marker="o", color="darkorange", linewidth=2)
+    axes[1].set_title("RMSE (test)")
+    axes[1].set_xlabel("Ronda")
+    axes[1].set_ylabel("RMSE")
+    axes[1].grid(True, alpha=0.3)
+
+    # R²
+    axes[2].plot(rounds, history["r2_test"], marker="o", color="seagreen", linewidth=2)
+    axes[2].set_title("R² (test)")
+    axes[2].set_xlabel("Ronda")
+    axes[2].set_ylabel("R²")
+    axes[2].set_ylim([0, 1])
+    axes[2].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig("evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    plt.show()
+    print("Gráfica guardada en evolucion_metricas (test).png")
