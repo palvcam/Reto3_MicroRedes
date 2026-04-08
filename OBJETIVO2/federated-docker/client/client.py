@@ -45,7 +45,7 @@ LR            = 0.001
 # CLIENTE
 class PVClient(fl.client.NumPyClient):
     def __init__(self, parque):
-        self.model     = PVModel(input_size=len(FEATURES), layers_sizes=[128, 64, 32])
+        self.model     = PVModel(input_size=len(FEATURES), layers_sizes=[256,128,64],dropout= 0.1)
         self.criterion = nn.MSELoss()
 
         # CARGA DATOS
