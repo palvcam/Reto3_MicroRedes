@@ -199,7 +199,7 @@ class PVClient(fl.client.NumPyClient):
         epochs = int(config.get("epochs", 1))
         mu = float(config.get("mu", 0.0))
 
-        global_params = [torch.tensor(p.copy(), dtype=torch.float32) for p in parameters]
+        global_params = [p.clone().detach() for p in self.model.parameters()]
         optimizer = torch.optim.Adam(self.model.parameters(), lr=LR)
 
         self.model.train()
@@ -354,7 +354,7 @@ class PVClient(fl.client.NumPyClient):
         std_preds = test_preds_mc_unscaled.std(axis=0)   # Incertidumbre
 
         # APLICACIÓN DEL GUARDRAIL
-        UMBRAL_INCERTIDUMBRE = 15.0 # Límite de Watios de duda permitidos (Ajustaréis esto)
+        UMBRAL_INCERTIDUMBRE = 8.0 # Límite de Watios de duda
         
         # Regla: Si std_preds > umbral, ignora la IA y usa 'predicciones_fisicas'
         test_preds_finales = np.where(
