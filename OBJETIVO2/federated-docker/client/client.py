@@ -28,6 +28,7 @@ FEATURES = [
     "Dry bulb temperature (degC)",
     "T_diff",
     "k_panel",
+    "factor_panel",
     "physical_model",
     "poa_ghi_ratio",
     "dni_ghi_ratio",
@@ -74,6 +75,8 @@ class PVClient(fl.client.NumPyClient):
 
         # ESTIMACIÓN k_panel
         k_por_panel = {}
+        factor_por_panel = {}
+
         for pid, grupo in train_df.groupby("panel_id"):
             if len(grupo) < 10:
                 continue
@@ -82,6 +85,7 @@ class PVClient(fl.client.NumPyClient):
             T = grupo["PV module back surface temperature (degC)"].values
             P = grupo["Pmp (W)"].values
 
+            # 1. Cálculo de k_panel
             y_k = P / (G + 1e-6)
             X_k = (T - 25).reshape(-1, 1)
 
@@ -89,15 +93,19 @@ class PVClient(fl.client.NumPyClient):
             m.fit(X_k, y_k)
             k_por_panel[pid] = float(-m.coef_[0])
 
+            # 2. Cálculo de factor_panel (Pmp_ref / G_ref medio del panel)
+            factor_por_panel[pid] = float(np.mean(P/ (G + 1e-6)))
+
         k_global = np.mean(list(k_por_panel.values())) if k_por_panel else 0.004
+        factor_global = np.mean(list(factor_por_panel.values())) if factor_por_panel else 0.15
 
         # FEATURE ENGINEERING
         for df in [train_df, val_df, test_df]:
             df["k_panel"] = df["panel_id"].map(k_por_panel).fillna(k_global)
+            df["factor_panel"] = df["panel_id"].map(factor_por_panel).fillna(factor_global)
 
             df["physical_model"] = (
-                1 - df["k_panel"] *
-                (df["PV module back surface temperature (degC)"] - 25)
+                df["POA irradiance CMP22 pyranometer (W/m2)"] * df["factor_panel"] * (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
             )
 
             df["T_diff"] = df["PV module back surface temperature (degC)"] - 25
@@ -282,6 +290,16 @@ class PVClient(fl.client.NumPyClient):
                     "test_rmse":      test_rmse,
                     "test_r2":        test_r2,
                 })
+    
+
+    # Como al llamar self.model.eval() pytorch apaga el dropout y congela las capas BatchNorm, 
+    # si ponemos todo en .train() se activa el dropout pero las BatchNorm no funcionan bien, 
+    # así que esta función activa sólo el dropout para hacer MC Dropout en evaluación.
+    def enable_dropout(self):
+        """Activa sólo las capas de dropout para MC Dropout."""
+        for m in self.model.modules():
+            if m.__class__.__name__.startswith("Dropout"):
+                m.train()
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
@@ -300,18 +318,55 @@ class PVClient(fl.client.NumPyClient):
         rmse = mse ** 0.5
         r2   = float(r2_score(targets, preds))
 
-        test_preds, test_targets = [], []
+
+        # Activamos el dropout en modo evaluación
+        self.enable_dropout()
+
+        T = 30 # Num. de inferencias estocásticas
+        test_preds_mc, test_targets, predicciones_fisicas = [], [], []
+
         with torch.no_grad():
             for X, y in self.test_loader:
-                test_preds.append(self.model(X))
+                # Realizamos T pasadas por el modelo con dropout activo
+                batch_preds = [self.model(X) for _ in range(T)]
+                test_preds_mc.append(torch.stack(batch_preds))
                 test_targets.append(y)
 
-        test_preds   = self.y_scaler.inverse_transform(torch.cat(test_preds).numpy())
-        test_targets = self.y_scaler.inverse_transform(torch.cat(test_targets).numpy())
+                # Preparación del MODELO FÍSICO para el guardrail
+                X_unscaled = self.x_scaler.inverse_transform(X.numpy())
 
-        test_mse  = float(((test_targets - test_preds) ** 2).mean())
+                # Extraemos el resultado de la fórmula física
+                p_fisica = X_unscaled[:, 6]
+                
+                # Lo guardamos para el guardrail
+                predicciones_fisicas.extend(p_fisica)
+
+        test_preds_mc = torch.cat(test_preds_mc, dim=1).numpy() # Dim: [T, muestras, 1]
+        test_targets = torch.cat(test_targets).numpy()
+        predicciones_fisicas = np.array(predicciones_fisicas).reshape(-1, 1)
+
+        T_shape, N_shape, _ = test_preds_mc.shape
+        test_preds_mc_unscaled = self.y_scaler.inverse_transform(test_preds_mc.reshape(-1, 1)).reshape(T_shape, N_shape, 1)
+        test_targets_unscaled = self.y_scaler.inverse_transform(test_targets).flatten()
+
+        # CÁLCULO DE INCERTIDUMBRE
+        mean_preds = test_preds_mc_unscaled.mean(axis=0) # Lo que predice la IA
+        std_preds = test_preds_mc_unscaled.std(axis=0)   # Incertidumbre
+
+        # APLICACIÓN DEL GUARDRAIL
+        UMBRAL_INCERTIDUMBRE = 15.0 # Límite de Watios de duda permitidos (Ajustaréis esto)
+        
+        # Regla: Si std_preds > umbral, ignora la IA y usa 'predicciones_fisicas'
+        test_preds_finales = np.where(
+            std_preds > UMBRAL_INCERTIDUMBRE, 
+            predicciones_fisicas, 
+            mean_preds
+        ).flatten()
+
+        # MÉTRICAS FINALES
+        test_mse  = float(((test_targets_unscaled - test_preds_finales) ** 2).mean())
         test_rmse = test_mse ** 0.5
-        test_r2   = float(r2_score(test_targets, test_preds))
+        test_r2   = float(r2_score(test_targets_unscaled, test_preds_finales))
 
         return mse, len(self.val_loader.dataset), {
             "val_mse":   mse,
