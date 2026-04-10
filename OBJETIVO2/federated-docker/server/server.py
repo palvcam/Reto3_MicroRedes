@@ -2,6 +2,8 @@ print("Iniciando servidor puerto 8080...")
 # Importar librerias
 import flwr as fl
 import numpy as np
+import os
+import flwr.common as flwr_common
 from hyper import FedEx
 from flwr.server.client_manager import SimpleClientManager
 from flwr.server.strategy import FedAvg
@@ -9,6 +11,27 @@ from flwr.server.superlink.fleet.grpc_bidi.grpc_server import start_grpc_server
 from flwr.common import GetParametersIns, FitIns, EvaluateIns
 import matplotlib.pyplot as plt
 import time
+
+class CheckpointFedAvg(FedAvg):
+    """Estrategia que hereda de FedAvg para guardar el modelo tras cada ronda."""
+    def aggregate_fit(self, server_round, results, failures):
+        # 1. Ejecuta la agregación normal matemática de FedAvg
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
+        
+        # 2. Guarda los pesos si la agregación fue exitosa
+        if aggregated_parameters is not None:
+            # Descomprime el formato de Flower a Arrays de NumPy
+            aggregated_ndarrays = flwr_common.parameters_to_ndarrays(aggregated_parameters)
+            
+            # Ruta absoluta dentro del contenedor Docker
+            save_path = "/app/modelos_guardados"
+            os.makedirs(save_path, exist_ok=True)
+            
+            # Sobrescribe el archivo. Al final, contendrá el último modelo.
+            np.savez(f"{save_path}/modelo_global_final.npz", *aggregated_ndarrays)
+            print(f"[Servidor] Checkpoint: Modelo global (ronda {server_round}) guardado en disco.")
+            
+        return aggregated_parameters, aggregated_metrics
 
 history = {"round": [], "mse_val": [], "rmse_val": [], "r2_val": [], "mse_test": [], "rmse_test": [], "r2_test": []} # Diccionario que acumula las métricas globales de cada ronda
 
@@ -34,8 +57,9 @@ def fedex_aggregate_metrics(metrics):
     print(f"\nGLOBAL R{len(history['round'])} TEST: MSE={mse_test:.4f}  RMSE={rmse_test:.4f}  R2={r2_test:.4f}")
     return {"mse_val": mse_val, "rmse_val": rmse_val, "r2_val": r2_val}
 
-# Define cómo el servidor va a agregar los modelos de los clientes
-strategy = FedAvg(
+# FedAvg define cómo el servidor va a agregar los modelos de los clientes
+# Lo sustituimos por CheckpointFedAvg, que hereda de FedAvg pero además guarda el modelo global en disco tras cada ronda
+strategy = CheckpointFedAvg(
     fraction_fit=1.0, # usa el 100% de los clientes disponibles para entrenar en cada ronda
     min_fit_clients=3, # mínimo 3 clientes deben participar en el entrenamiento
     min_available_clients=3, # el servidor espera hasta que haya 3 clientes conectados antes de empezar
