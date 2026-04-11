@@ -2,7 +2,7 @@ print("Iniciando servidor puerto 8080...")
 # Importar librerias
 import flwr as fl
 import numpy as np
-from hyper import FedEx
+from .hyper import FedEx
 from flwr.server.client_manager import SimpleClientManager
 from flwr.server.strategy import FedAvg
 from flwr.server.superlink.fleet.grpc_bidi.grpc_server import start_grpc_server

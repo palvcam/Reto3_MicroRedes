@@ -16,8 +16,6 @@ class CustomEnvTabular(gym.Env):
     Este entorno:
     - observa el estado actual desde pymgrid
     - discretiza el estado
-    - transforma una acción discreta (solo batería) en una acción normalizada
-    - usa mg.run(..., normalized=True)
     - calcula el comportamiento físico de la red a posteriori para monitorización
     """
 
@@ -150,7 +148,6 @@ class CustomEnvTabular(gym.Env):
         net_load = current_load - current_pv
 
         # 2. EJECUTAR ACCIÓN 
-        # (Solo mandamos la batería, Pymgrid usa la red como Flex Module automáticamente)
         control_dict = self._get_control_dict(action)
         mg_obs, mg_reward, mg_done, mg_info = self.mg.run(
             control_dict,
