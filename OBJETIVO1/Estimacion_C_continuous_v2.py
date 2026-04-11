@@ -135,5 +135,7 @@ print("   - Si quieres un CASTIGO SEVERO (equivalente a una hora económicamente
 print(f"     low_soc_penalty = 2.0")
 print("   - Si quieres un CASTIGO EXTREMO (equivalente a las peores penalizaciones de balanceo):")
 print(f"     low_soc_penalty = {abs(p05 / C_propuesta):.2f} (Aprox)")
+print(f"Rango real Net Load: {np.min(load_series - pv_series):.2f} a {np.max(load_series - pv_series):.2f}")
+print(f"Rango real Precios: {np.min(precios_kwh):.4f} a {np.max(precios_kwh):.4f}")
 
 env_est.close()

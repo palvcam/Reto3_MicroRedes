@@ -25,8 +25,8 @@ class CustomEnvContinuousv2(gym.Env):
         self,
         pymgrid_network,
         horizon=24 * 365,
-        reward_scale_C=1.0,
-        low_soc_penalty=0.3,
+        reward_scale_C=91.88,
+        low_soc_penalty=0.5,
         low_soc_threshold=0.2,
         net_load_min=-40.64,
         net_load_max=62.45,
@@ -197,27 +197,23 @@ class CustomEnvContinuousv2(gym.Env):
 
     def _get_control_dict(self, action):
         """
-        Convierte una acción continua simétrica del agente (shape (2,))
-        en una acción normalizada en [0, 1] para pymgrid.
-
-        action:
-            action[0] -> batería, en [-1, 1]
-            action[1] -> red, en [-1, 1]
-
-        pymgrid.run(..., normalized=True) espera:
-            {"battery": [x], "grid": [y]} con x,y en [0,1]
+        Calcula el balance físico real: Grid = Net_Load - Battery_Action
         """
-        action = np.asarray(action, dtype=np.float32).reshape(-1)
-
-        if action.shape != (1,):
-            raise ValueError(f"Se esperaba acción con shape (1,), recibido {action.shape}")
-
-        battery_action = self._map_symmetric_action_to_unit_interval(action[0])
-
-        # Solo enviamos la batería. Pymgrid balanceará la red automáticamente.
+        # 1. La acción de PPO viene en [-1, 1]. La escalamos a los kW de tu batería (50 kW)
+        # action es un array, pillamos el primer elemento
+        battery_kw_requested = float(action[0] * 50.0) 
+        
+        # 2. Obtenemos la carga neta actual (Load - PV)
+        current_net_load = self._get_current_load() - self._get_current_pv()
+        
+        # 3. La red DEBE cubrir lo que la batería no cubra para que el sistema esté en equilibrio
+        # Grid = Demanda - Batería
+        grid_kw_required = current_net_load - battery_kw_requested
+        
+        # 4. Retornamos en kW reales (usaremos normalized=False en el step)
         return {
-            "battery": [battery_action],
-            "grid": [0.5]
+            "battery": [battery_kw_requested],
+            "grid": [grid_kw_required]
         }
 
 
@@ -234,7 +230,7 @@ class CustomEnvContinuousv2(gym.Env):
 
         mg_obs, mg_reward, mg_done, mg_info = self.mg.run(
             control_dict,
-            normalized=True
+            normalized=False
         )
 
         raw_reward = float(mg_reward)
@@ -296,6 +292,11 @@ class CustomEnvContinuousv2(gym.Env):
             "soc_after": current_soc,
             "soc": current_soc,
             "low_soc_penalty_applied": low_soc_penalty_applied,
+            "grid_import_kw": max(0, control_dict["grid"][0]),
+            "grid_export_kw": max(0, -control_dict["grid"][0]),
+            "battery_kw": control_dict["battery"][0],
+            "current_load": current_load,
+            "current_pv": current_pv
         }
 
         if terminal_observation is not None:

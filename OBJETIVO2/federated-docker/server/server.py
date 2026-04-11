@@ -263,9 +263,9 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    plt.savefig("/app/output/evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
     plt.show()
-    print("Gráfica guardada en evolucion_metricas (validaión).png")
+    print("Gráfica guardada en aws evolucion_metricas (validaión).png")
 
     ### TEST
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -294,6 +294,7 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    plt.savefig("/app/output/evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
     plt.show()
-    print("Gráfica guardada en evolucion_metricas (test).png")
+    print("Gráfica guardada en aws evolucion_metricas (test).png")
+    
