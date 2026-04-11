@@ -24,7 +24,8 @@ class CheckpointFedAvg(FedAvg):
             aggregated_ndarrays = flwr_common.parameters_to_ndarrays(aggregated_parameters)
             
             # Ruta absoluta dentro del contenedor Docker
-            save_path = "/app/modelos_guardados"
+            #save_path = "/app/modelos_guardados"
+            save_path = "modelos_guardados"
             os.makedirs(save_path, exist_ok=True)
             
             # Sobrescribe el archivo. Al final, contendrá el último modelo.
@@ -45,17 +46,37 @@ def fedex_aggregate_metrics(metrics):
     mse_test  = sum(n * m["test_mse"]  for n, m in metrics) / total_samples
     rmse_test = sum(n * m["test_rmse"] for n, m in metrics) / total_samples
     r2_test   = sum(n * m["test_r2"]   for n, m in metrics) / total_samples
+
+    # SIN ESCALAR
+    real_mse_val   = sum(n * m["real_val_mse"]   for n, m in metrics) / total_samples
+    real_rmse_val  = sum(n * m["real_val_rmse"]  for n, m in metrics) / total_samples
+    real_mse_test  = sum(n * m["real_test_mse"]  for n, m in metrics) / total_samples
+    real_rmse_test = sum(n * m["real_test_rmse"] for n, m in metrics) / total_samples
+
     # Se guardan las métricas en el historial
-    history["round"].append(len(history["round"]) + 1) 
-    history["mse_val"].append(mse_val)
-    history["rmse_val"].append(rmse_val)
+    #history["round"].append(len(history["round"]) + 1) 
+    #history["mse_val"].append(mse_val)
+    #history["rmse_val"].append(rmse_val)
+    #history["r2_val"].append(r2_val)
+    #history["mse_test"].append(mse_test)
+    #history["rmse_test"].append(rmse_test)
+    #history["r2_test"].append(r2_test)
+    history["round"].append(len(history["round"]) + 1)
+    history["mse_val"].append(real_mse_val)       
+    history["rmse_val"].append(real_rmse_val) 
     history["r2_val"].append(r2_val)
-    history["mse_test"].append(mse_test)
-    history["rmse_test"].append(rmse_test)
+    history["mse_test"].append(real_mse_test)   
+    history["rmse_test"].append(real_rmse_test) 
     history["r2_test"].append(r2_test)
-    print(f"\nGLOBAL R{len(history['round'])} VAL: MSE={mse_val:.4f}  RMSE={rmse_val:.4f}  R2={r2_val:.4f}")
-    print(f"\nGLOBAL R{len(history['round'])} TEST: MSE={mse_test:.4f}  RMSE={rmse_test:.4f}  R2={r2_test:.4f}")
-    return {"mse_val": mse_val, "rmse_val": rmse_val, "r2_val": r2_val}
+
+    rnd = len(history["round"])
+    print(f"\nGLOBAL R{rnd} VAL:  MSE={real_mse_val:.4f} W²  RMSE={real_rmse_val:.4f} W  R²={r2_val:.4f}")
+    print(f"GLOBAL R{rnd} TEST: MSE={real_mse_test:.4f} W²  RMSE={real_rmse_test:.4f} W  R²={r2_test:.4f}")
+
+    return {"mse_val": mse_val, "rmse_val": real_rmse_val, "r2_val": r2_val}
+    #print(f"\nGLOBAL R{len(history['round'])} VAL: MSE={mse_val:.4f}  RMSE={rmse_val:.4f}  R2={r2_val:.4f}")
+    #print(f"\nGLOBAL R{len(history['round'])} TEST: MSE={mse_test:.4f}  RMSE={rmse_test:.4f}  R2={r2_test:.4f}")
+    #return {"mse_val": mse_val, "rmse_val": rmse_val, "r2_val": r2_val}
 
 # FedAvg define cómo el servidor va a agregar los modelos de los clientes
 # Lo sustituimos por CheckpointFedAvg, que hereda de FedAvg pero además guarda el modelo global en disco tras cada ronda

@@ -293,6 +293,11 @@ class PVClient(fl.client.NumPyClient):
                     "test_mse":       test_loss,
                     "test_rmse":      test_rmse,
                     "test_r2":        test_r2,
+                    # SIN ESCALAR 
+                    "real_val_mse":   real_val_mse,
+                    "real_val_rmse":  real_val_rmse,
+                    "real_test_mse":  real_test_mse,
+                    "real_test_rmse": real_test_rmse
                 })
     
 
