@@ -25,11 +25,9 @@ SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "127.0.0.1:8080")
 FEATURES = [
     "POA irradiance CMP22 pyranometer (W/m2)",
     "PV module back surface temperature (degC)",
-    "Dry bulb temperature (degC)",
     "T_diff",
     "k_panel",
-    "factor_panel",
-    "physical_model",
+    "T_correccion",
     "poa_ghi_ratio",
     "dni_ghi_ratio",
     "dhi_ghi_ratio",
@@ -103,6 +101,7 @@ class PVClient(fl.client.NumPyClient):
         for df in [train_df, val_df, test_df]:
             df["k_panel"] = df["panel_id"].map(k_por_panel).fillna(k_global)
             df["factor_panel"] = df["panel_id"].map(factor_por_panel).fillna(factor_global)
+            df["T_correccion"] = (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
 
             df["physical_model"] = (
                 df["POA irradiance CMP22 pyranometer (W/m2)"] * df["factor_panel"] * (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
@@ -136,6 +135,11 @@ class PVClient(fl.client.NumPyClient):
             df["ghi_temp"] = df["Global horizontal irradiance (W/m2)"] * df[
                 "Dry bulb temperature (degC)"
             ]
+
+        # Guardar para usarlo en el guardrail
+        self.physical_model_train = train_df["physical_model"]
+        self.physical_model_val   = val_df["physical_model"]
+        self.physical_model_test  = test_df["physical_model"]
 
         # INPUT
         X_train = train_df[FEATURES]
@@ -289,6 +293,11 @@ class PVClient(fl.client.NumPyClient):
                     "test_mse":       test_loss,
                     "test_rmse":      test_rmse,
                     "test_r2":        test_r2,
+                    # SIN ESCALAR 
+                    "real_val_mse":   real_val_mse,
+                    "real_val_rmse":  real_val_rmse,
+                    "real_test_mse":  real_test_mse,
+                    "real_test_rmse": real_test_rmse
                 })
     
 
@@ -321,29 +330,25 @@ class PVClient(fl.client.NumPyClient):
 
         # Activamos el dropout en modo evaluación
         self.enable_dropout()
+        #test_preds_mc, test_targets, predicciones_fisicas = [], [], []
 
-        T = 30 # Num. de inferencias estocásticas
-        test_preds_mc, test_targets, predicciones_fisicas = [], [], []
+        T = 30  # Num. de inferencias estocásticas
+        test_preds_mc, test_targets = [], []
 
         with torch.no_grad():
-            for X, y in self.test_loader:
-                # Realizamos T pasadas por el modelo con dropout activo
-                batch_preds = [self.model(X) for _ in range(T)]
+            for X_batch, y_batch in self.test_loader:
+                # T pasadas por el modelo con dropout activo
+                batch_preds = [self.model(X_batch) for _ in range(T)]
                 test_preds_mc.append(torch.stack(batch_preds))
-                test_targets.append(y)
+                test_targets.append(y_batch)
 
-                # Preparación del MODELO FÍSICO para el guardrail
-                X_unscaled = self.x_scaler.inverse_transform(X.numpy())
-
-                # Extraemos el resultado de la fórmula física
-                p_fisica = X_unscaled[:, 6]
-                
-                # Lo guardamos para el guardrail
-                predicciones_fisicas.extend(p_fisica)
-
-        test_preds_mc = torch.cat(test_preds_mc, dim=1).numpy() # Dim: [T, muestras, 1]
+        # Unimos todo
+        test_preds_mc = torch.cat(test_preds_mc, dim=1).numpy()  # [T, N, 1]
         test_targets = torch.cat(test_targets).numpy()
-        predicciones_fisicas = np.array(predicciones_fisicas).reshape(-1, 1)
+
+        # Usamos el physical_model del test completo (previamente guardado)
+        predicciones_fisicas = self.physical_model_test.values  # Asegura que sea np.ndarray
+        predicciones_fisicas = predicciones_fisicas.reshape(-1, 1)  # [N, 1]
 
         T_shape, N_shape, _ = test_preds_mc.shape
         test_preds_mc_unscaled = self.y_scaler.inverse_transform(test_preds_mc.reshape(-1, 1)).reshape(T_shape, N_shape, 1)
