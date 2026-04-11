@@ -119,7 +119,7 @@ class FlowerFedExServer:
             # Enviar pesos globales y config al cliente para que entrene localmente
             fit_res = client.fit(
                             ins=FitIns(parameters=self.global_parameters, config=fit_config),
-                            timeout=300.0,
+                            timeout=10000,
                             group_id=0,
                         )
             fit_results.append(fit_res) # Guardar resultado del cliente
@@ -263,7 +263,8 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("/app/output/evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    #plt.savefig("/app/output/evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    plt.savefig("evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
     plt.show()
     print("Gráfica guardada en aws evolucion_metricas (validaión).png")
 
@@ -294,7 +295,8 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("/app/output/evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    #plt.savefig("/app/output/evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    plt.savefig("evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
     plt.show()
     print("Gráfica guardada en aws evolucion_metricas (test).png")
     
