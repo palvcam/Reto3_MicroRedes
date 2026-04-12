@@ -24,7 +24,7 @@ El objetivo es desarrollar un sistema inteligente capaz de **optimizar el coste 
 
 ###  Objetivo 2 — Predicción de la potencia máxima (Pmp) de módulos PV
 - Uso de dataset con **33 módulos PV en 3 localizaciones**
-- Entrenamiento centralizado vs Federated Learning (FedAvg)
+- Entrenamiento centralizado vs Federated Learning
 - Evaluación con métricas de regresión
 
 ---
@@ -56,7 +56,7 @@ SistemaMicrored-Reto03-Grupo05
 
 ---
 
-## 🧪 Metodología
+## Metodología
 
 ###  Gestión de proyectos de IA
 - Definición de requisitos y especificaciones  
