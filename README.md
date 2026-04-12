@@ -131,7 +131,7 @@ Se distingue en dos etapas:
 - Decidir_bins.ipynb decide los bins de discretización para definir los estados discretos (no necesario ejecutarlo ya que los resultados ya están implementados en 2_q-learning.ipynb).
 - custom_env_tabular2.py contiene el entorno creado (tampoco hay que ejecutarlo)
 - 2_q-learning.ipynb recoge todo el proceso de instanciación del simulador de la red, el hp search, el entrenamiento definitivo y las visualizaciones
-- 
+- Ejecutar Analisis_Resultados.ipynb para un análisis estadístico
 
 2. Deep RL:
 
