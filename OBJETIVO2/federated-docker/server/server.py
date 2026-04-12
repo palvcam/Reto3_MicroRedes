@@ -22,7 +22,7 @@ class CheckpointFedAvg(FedAvg):
 
         if aggregated_parameters is not None:
 
-            # 🔹 Calcular MSE global de esta ronda
+            # Calcular MSE global de esta ronda
             metrics = [(int(r.num_examples), r.metrics) for _, r in results]
             total_samples = sum(n for n, _ in metrics)
 
@@ -30,7 +30,7 @@ class CheckpointFedAvg(FedAvg):
 
             print(f"[Servidor] R{server_round} MSE_val: {mse_val:.4f}")
 
-            # 🔹 Si mejora → guardar
+            # Si mejora → guardar
             if mse_val < self.best_mse:
                 self.best_mse = mse_val
 
