@@ -40,12 +40,13 @@ Reto03_MicroRedes
 ┃ ┃ ┣ 2_q-learning.ipynb         # Entrenamiento y evaluación del agente tabular
 ┃ ┃ ┣ custom_env_tabular2.py     # Wrapper del entorno pymgrid discretizado
 ┃ ┃ ┗ Decidir_bins.ipynb         # Análisis para la discretización de variables
-┃ ┣ data/                        # Datos de series temporales (load, PV, precios e-sios)                   
+┃ ┣ data/                        # Datos de series temporales (load, PV, precios e-sios)
+┃ ┣ conversion_pv_a_kw.pt        # Conversion irradiancia-kW (.csv de PV)                      
 ┃ ┗ PPO/                         # Enfoque Deep-RL: entorno continuo y agentes PPO
-┃   ┣ Analisis_Resultados.ipynb  # Evaluación visual y métricas del modelo final
-┃   ┣ custom_env_continuous_v2.py# Wrapper del entorno pymgrid continuo
-┃   ┣ new_training_PPO_v2.py     # Script de entrenamiento principal PPO
-┃   ┗ train_PPO_optuna_v3.py     # Búsqueda de hiperparámetros con Optuna
+┃   ┣ Analisis_Resultados_PPO_v1.ipynb  # Evaluación visual y métricas del modelo final
+┃   ┣ custom_env_continuous_v2.py  # Wrapper del entorno pymgrid continuo
+┃   ┣ Estimate_C_continuous.py     # Estimacion de la constante C de normalizacion
+┃   ┗ train_PPO_optuna_v1.py     # Script de entrenamiento principal PPO
 ┣ OBJETIVO2/
 ┃ ┣ Evaluacion/                  # Evaluación de incertidumbre del modelo de aprendizaje federado
 ┃ ┣ federated-docker-avg/        # Federated Learning Average 
@@ -134,6 +135,10 @@ Se distingue en dos etapas:
 - Ejecutar Analisis_Resultados.ipynb para un análisis estadístico
 
 2. Deep RL:
+- Establecer (offline) requisitos fisicos (parámetros) de la microred
+- Ejecutar Estimacion_C_continuous.py con los parámetros definidos en el paso anterior
+- Ejecutar training_PPO_v1.py para el entrenamiento y optimización de HP. Importante adaptar parametros/variables a las necesidades propias
+- Ejecutar notebook Analisis_Resultados_PPO.ipynb para el análisis de los resultados. Importante adaptar rutas.
 
 OBJETIVO 2
 - Ejecutar el notebook Baseline.ipynb
@@ -146,7 +151,34 @@ OBJETIVO 2
   5. Lanzar los clientes en local, cada uno desde una terminal diferente
   6. Desde la carpeta de federated-docker/server en local recuperar las imágenes de los resultados de EC2
 
-## Tests?
+### TESTING
+
+Se diferencian dos enfoques principales: **tests unitarios** y **tests de integración**.
+
+#### TESTS UNITARIOS
+- Los tests unitarios validan componentes individuales del sistema.
+- Scripts incluidos:
+  - `test_model.py`
+  - `test_server.py`
+  - `test_client.py`
+- Ejecución de cada test unitario:
+  - `pytest test_model.py`
+  - `pytest test_server.py`
+  - `pytest test_client.py`
+- Ejecución conjunta de todos los tests unitarios:
+  - `pytest`
+
+#### TESTS DE INTEGRACIÓN
+- Los tests de integración validan que los módulos funcionan correctamente al interactuar entre sí.
+- Script incluido:
+  - `test_integration.py`
+- Ejecución de los tests de integración:
+  - `pytest test_integration.py`
+
+#### COVERAGE
+- Medición de la cobertura de código con pytest:
+  - `pytest --cov=. --cov-report=term-missing`
+
 
 
 
