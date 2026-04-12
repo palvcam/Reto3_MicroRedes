@@ -19,7 +19,7 @@ El objetivo es desarrollar un sistema inteligente capaz de **optimizar el coste 
 ###  Objetivo 1 — Optimización del coste de operación de la microred
 - Simulación de microred con **pymgrid**
 - Definición de estados, acciones y recompensas
-- Implementación de algoritmos RL (Q-Learning, A2C, PPO…)
+- Implementación de algoritmos RL (Q-Learning, PPO)
 - Modificación del entorno (batería, coste horario, etc.)
 
 ###  Objetivo 2 — Predicción de la potencia máxima (Pmp) de módulos PV
@@ -30,12 +30,22 @@ El objetivo es desarrollar un sistema inteligente capaz de **optimizar el coste 
 ---
 
 ##  Estructura del repositorio 
-*(rellenamos cuando tengamos, la siguiente estructura es solo una propuesta)*
 ```txt
 Reto03_MicroRedes
 ┣ OBJETIVO1/
-┃ ┣ /          # Datos para simulación (Objetivo 1)
-┃ ┗ /            # CSVs de módulos PV (Objetivo 2)
+┃ ┣ 2_Q-learning/                # Enfoque tabular: entorno discreto y agentes Q-Learning
+┃ ┃ ┣ images/
+┃ ┃ ┣ Q-learning/                # Contiene mejor q-table del hp search y base de datos de búsqueda de mejores hiperparámetros
+┃ ┃ ┣ Resultados_Entrenamiento_Q/# q-tables de las 30 ejecuciones independientes de entrenamiento
+┃ ┃ ┣ 2_q-learning.ipynb         # Entrenamiento y evaluación del agente tabular
+┃ ┃ ┣ custom_env_tabular2.py     # Wrapper del entorno pymgrid discretizado
+┃ ┃ ┗ Decidir_bins.ipynb         # Análisis para la discretización de variables
+┃ ┣ data/                        # Datos de series temporales (load, PV, precios e-sios)                   
+┃ ┗ PPO/                         # Enfoque Deep-RL: entorno continuo y agentes PPO
+┃   ┣ Analisis_Resultados.ipynb  # Evaluación visual y métricas del modelo final
+┃   ┣ custom_env_continuous_v2.py# Wrapper del entorno pymgrid continuo
+┃   ┣ new_training_PPO_v2.py     # Script de entrenamiento principal PPO
+┃   ┗ train_PPO_optuna_v3.py     # Búsqueda de hiperparámetros con Optuna
 ┣ OBJETIVO2/
 ┃ ┣ Evaluacion/                    # Evaluación de incertidumbre del modelo de aprendizaje federado
 ┃ ┣ federated-docker-avg/                    # Federated Learning Average 
@@ -74,11 +84,10 @@ Reto03_MicroRedes
 ##  Datos utilizados
 
 ###  Objetivo 1 — Microred simulada
-- PV, batería, grid, load  
-- Tarifas horarias  
-- Outages  
-- Costes de generación  
-
+Tres CSVs, informado de tres diferentes variables para cada hora:
+- Precio de la luz (€/kWh)
+- PV: producción fotovoltaica
+- Load: demanda horaria
 
 ###  Objetivo 2 — Dataset PV
 Cada CSV contiene:
@@ -88,7 +97,6 @@ Cada CSV contiene:
 - Humedad, presión, precipitación  
 - DNI, GHI, DHI
 - Feature Engineering  
-
 
 ---
 
@@ -116,6 +124,16 @@ pip install -r requirements.txt
 ```
 
 ### 4. Ejecutar notebooks/Scripts
+
+OBJETIVO 1
+Se distingue en dos etapas:
+1. Entorno Tabular (se desarrolla por completo en la carpeta 2_Q-learning):
+- Decidir_bins.ipynb decide los bins de discretización para definir los estados discretos (no necesario ejecutarlo ya que los resultados ya están implementados en 2_q-learning.ipynb).
+- custom_env_tabular2.py contiene el entorno creado (tampoco hay que ejecutarlo)
+- 2_q-learning.ipynb recoge todo el proceso de instanciación del simulador de la red, el hp search, el entrenamiento definitivo y las visualizaciones
+- Ejecutar Analisis_Resultados.ipynb para un análisis estadístico
+
+2. Deep RL:
 
 OBJETIVO 2
 - Ejecutar el notebook Baseline.ipynb
