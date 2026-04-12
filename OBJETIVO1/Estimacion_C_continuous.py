@@ -1,4 +1,4 @@
-from custom_env_continuous import CustomEnvContinuous 
+from custom_env_continuous_v2 import CustomEnvContinuousv2
 from pymgrid import Microgrid
 from pymgrid.modules import GridModule, BatteryModule, LoadModule, RenewableModule
 from pathlib import Path
@@ -73,10 +73,10 @@ print("=== INICIANDO ESTIMACIÓN CON AGENTE ALEATORIO ===")
 
 # Construimos la microrred y el entorno (usando C=1.0 para ver los valores brutos)
 mg_est = build_microgrid(precios_kwh, load_series, pv_series)
-env_est = CustomEnvContinuous(
+env_est = CustomEnvContinuousv2(
     pymgrid_network=mg_est,
     horizon=24 * 365,
-    reward_scale_C=1.0,        # <- Mantenemos 1.0 para extraer el coste real
+    reward_scale_C=1,        # <- Mantenemos 1.0 para extraer el coste real
     low_soc_penalty=0.0,       # <- Apagamos la penalización para no ensuciar el coste económico
     low_soc_threshold=0.20,
     net_load_min=-40.64,
@@ -135,5 +135,7 @@ print("   - Si quieres un CASTIGO SEVERO (equivalente a una hora económicamente
 print(f"     low_soc_penalty = 2.0")
 print("   - Si quieres un CASTIGO EXTREMO (equivalente a las peores penalizaciones de balanceo):")
 print(f"     low_soc_penalty = {abs(p05 / C_propuesta):.2f} (Aprox)")
+print(f"Rango real Net Load: {np.min(load_series - pv_series):.2f} a {np.max(load_series - pv_series):.2f}")
+print(f"Rango real Precios: {np.min(precios_kwh):.4f} a {np.max(precios_kwh):.4f}")
 
 env_est.close()

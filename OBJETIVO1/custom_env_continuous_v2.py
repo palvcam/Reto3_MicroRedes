@@ -26,7 +26,7 @@ class CustomEnvContinuousv2(gym.Env):
         pymgrid_network,
         horizon=24 * 365,
         reward_scale_C=91.88,
-        low_soc_penalty=0.5,
+        low_soc_penalty=1.0,
         low_soc_threshold=0.2,
         net_load_min=-40.64,
         net_load_max=62.45,
