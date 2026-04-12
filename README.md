@@ -47,11 +47,11 @@ Reto03_MicroRedes
 ┃   ┣ new_training_PPO_v2.py     # Script de entrenamiento principal PPO
 ┃   ┗ train_PPO_optuna_v3.py     # Búsqueda de hiperparámetros con Optuna
 ┣ OBJETIVO2/
-┃ ┣ Evaluacion/                    # Evaluación de incertidumbre del modelo de aprendizaje federado
-┃ ┣ federated-docker-avg/                    # Federated Learning Average 
-┃ ┣ federated-docker-prox/                    # Federated Learning Proximal
-┃ ┣ federated-docker/                    # Federated Learning Proximal con hyperparameter tuning (definitivo para despliegue)
-┃ ┗ Baseline.ipynb/                 # Análisis de la distribución de los datos y comparación de modelos de ML 
+┃ ┣ Evaluacion/                  # Evaluación de incertidumbre del modelo de aprendizaje federado
+┃ ┣ federated-docker-avg/        # Federated Learning Average 
+┃ ┣ federated-docker-prox/       # Federated Learning Proximal
+┃ ┣ federated-docker/            # Federated Learning Proximal con hyperparameter tuning (definitivo para despliegue)
+┃ ┗ Baseline.ipynb/              # Análisis de la distribución de los datos y comparación de modelos de ML 
 ┗ README.md
 ```
 
