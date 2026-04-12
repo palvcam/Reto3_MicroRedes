@@ -32,25 +32,17 @@ El objetivo es desarrollar un sistema inteligente capaz de **optimizar el coste 
 ##  Estructura del repositorio 
 *(rellenamos cuando tengamos, la siguiente estructura es solo una propuesta)*
 ```txt
-SistemaMicrored-Reto03-Grupo05
-┣ data/
-┃ ┣ pymgrid_data/          # Datos para simulación (Objetivo 1)
-┃ ┗ pv_modules/            # CSVs de módulos PV (Objetivo 2)
-┣ src/
-┃ ┣ rl/                    # Algoritmos de Aprendizaje por Refuerzo
-┃ ┣ fl/                    # Federated Learning
-┃ ┣ ml/                    # Modelos de predicción Pmp
-┃ ┗ utils/                 # Funciones auxiliares
-┣ notebooks/
-┃ ┣ RL_experiments.ipynb
-┃ ┣ PV_prediction.ipynb
-┃ ┗ FederatedLearning.ipynb
-┣ tests/
-┃ ┗ pytest_regression/     # Oráculos de regresión
-┣ Dockerfile
-┣ requirements.txt
-┣ README.md
-┗ LICENSE
+Reto03_MicroRedes
+┣ OBJETIVO1/
+┃ ┣ /          # Datos para simulación (Objetivo 1)
+┃ ┗ /            # CSVs de módulos PV (Objetivo 2)
+┣ OBJETIVO2/
+┃ ┣ Evaluacion/                    # Evaluación de incertidumbre del modelo de aprendizaje federado
+┃ ┣ federated-docker-avg/                    # Federated Learning Average 
+┃ ┣ federated-docker-prox/                    # Federated Learning Proximal
+┃ ┣ federated-docker/                    # Federated Learning Proximal con hyperparameter tuning (definitivo para despliegue)
+┃ ┗ Baseline.ipynb/                 # Análisis de la distribución de los datos y comparación de modelos de ML 
+┗ README.md
 ```
 
 
@@ -72,8 +64,8 @@ SistemaMicrored-Reto03-Grupo05
 
 
 ###  Aprendizaje Automático II
-- Modelos de regresión para Pmp  
-- Federated Learning con FedAvg  
+- Modelos de predicción para Pmp  
+- Federated Learning con FedProx + hyperparameter tuning 
 - Análisis de heterogeneidad (non-IID)  
 
 
@@ -94,7 +86,8 @@ Cada CSV contiene:
 - Temperatura del módulo  
 - Pmp (W)  
 - Humedad, presión, precipitación  
-- DNI, GHI, DHI  
+- DNI, GHI, DHI
+- Feature Engineering  
 
 
 ---
@@ -124,10 +117,19 @@ pip install -r requirements.txt
 
 ### 4. Ejecutar notebooks/Scripts
 
-
+OBJETIVO 2
+- Ejecutar el notebook Baseline.ipynb
+- Ejecutar el notebook de evaluacion_incertidumbre.ipynb para ajustar el umbral del guardrail
+- Despliegue en AWS + local
+  1. Crear instancia de EC2 y una carpeta en esa instancia para guardar los resultados del aprendizaje federado
+  2. Crear los contenedores de docker para el client y el server
+  3. Guardar la imagen del server y subir la imagen a EC2
+  4. Cargar la imagen del server en EC2 y lanzar el server 
+  5. Lanzar los clientes en local, cada uno desde una terminal diferente
+  6. Desde la carpeta de federated-docker/server en local recuperar las imágenes de los resultados de EC2
 
 ## Tests?
 
-## Docker y despliegue??
+
 
 
