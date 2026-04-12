@@ -1,11 +1,11 @@
-from custom_env_continuous_v2 import CustomEnvContinuousv2
+from OBJETIVO1.PPO.custom_env_continuous_v2 import CustomEnvContinuousv2
 from pymgrid import Microgrid
 from pymgrid.modules import GridModule, BatteryModule, LoadModule, RenewableModule
 from pathlib import Path
 import pandas as pd
 import numpy as np
 
-ruta_padre=Path(__file__).parent.parent
+ruta_padre=Path(__file__).parent.parent.parent
 # PRECIOS DE LA RED (Península 2025)
 ruta_precios = ruta_padre /"OBJETIVO1" / 'data' / 'external'/ 'precio2025-peninsula.csv'
 df_precios = pd.read_csv(ruta_precios, sep=';')
