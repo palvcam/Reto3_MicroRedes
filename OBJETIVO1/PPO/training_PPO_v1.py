@@ -22,7 +22,7 @@ ruta_script = Path(__file__).parent
 ruta_padre = ruta_script.parent.parent
 sys.path.append(str(ruta_padre))
 
-from custom_env_continuous_v2 import CustomEnvContinuousv2
+from OBJETIVO1.PPO.custom_env_continuous_v2 import CustomEnvContinuousv2
 from pymgrid.modules import GridModule, BatteryModule, LoadModule, RenewableModule
 from pymgrid import Microgrid
 
