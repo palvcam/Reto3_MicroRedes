@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/148871842929121368/0572b9f79765471192d42d815c3410ff/artifacts
+end_time: 1775545244992
+entry_point_name: ''
+experiment_id: '148871842929121368'
+lifecycle_stage: active
+run_id: 0572b9f79765471192d42d815c3410ff
+run_name: powerful-colt-755
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1775544545883
+status: 3
+tags: []
+user_id: root

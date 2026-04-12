@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/317188016548026829/02779bf51deb4cbf8060c5b04f593f7e/artifacts
+end_time: 1774513107433
+entry_point_name: ''
+experiment_id: '317188016548026829'
+lifecycle_stage: active
+run_id: 02779bf51deb4cbf8060c5b04f593f7e
+run_name: handsome-carp-562
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774512533647
+status: 3
+tags: []
+user_id: root

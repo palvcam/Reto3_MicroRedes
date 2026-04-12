@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/8ad6a60622db4866b058302ae5d72370/artifacts
+end_time: 1774374508628
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 8ad6a60622db4866b058302ae5d72370
+run_name: honorable-auk-456
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774374213220
+status: 3
+tags: []
+user_id: root

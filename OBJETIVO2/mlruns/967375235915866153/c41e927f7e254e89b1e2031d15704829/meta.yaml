@@ -1,0 +1,14 @@
+artifact_uri: file:c:/Users/libeb/OneDrive/Documentos/GitHub/Reto3_MicroRedes/OBJETIVO2/mlruns/967375235915866153/c41e927f7e254e89b1e2031d15704829/artifacts
+end_time: 1774260458917
+entry_point_name: ''
+experiment_id: '967375235915866153'
+lifecycle_stage: active
+run_id: c41e927f7e254e89b1e2031d15704829
+run_name: upset-whale-6
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774259598280
+status: 3
+tags: []
+user_id: libeb

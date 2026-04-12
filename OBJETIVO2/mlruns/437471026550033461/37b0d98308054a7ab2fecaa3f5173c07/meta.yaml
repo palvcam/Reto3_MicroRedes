@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/37b0d98308054a7ab2fecaa3f5173c07/artifacts
+end_time: 1774373901194
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 37b0d98308054a7ab2fecaa3f5173c07
+run_name: skillful-skunk-355
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774373533185
+status: 3
+tags: []
+user_id: root

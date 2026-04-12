@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/148871842929121368/151973ad5bcf4cfdbd944431b0cf7469/artifacts
+end_time: 1775549532756
+entry_point_name: ''
+experiment_id: '148871842929121368'
+lifecycle_stage: active
+run_id: 151973ad5bcf4cfdbd944431b0cf7469
+run_name: unequaled-hog-988
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1775548761214
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/f51285c6c490464aa23999ef18c003cc/artifacts
+end_time: 1774896018362
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: f51285c6c490464aa23999ef18c003cc
+run_name: welcoming-eel-302
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774894973138
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/31e091c067534c41bda685d39db9b84b/artifacts
+end_time: 1774893368100
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 31e091c067534c41bda685d39db9b84b
+run_name: overjoyed-goat-293
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774892072723
+status: 3
+tags: []
+user_id: root

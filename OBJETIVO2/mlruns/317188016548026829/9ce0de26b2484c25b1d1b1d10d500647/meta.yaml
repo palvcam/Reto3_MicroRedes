@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/317188016548026829/9ce0de26b2484c25b1d1b1d10d500647/artifacts
+end_time: 1774511612516
+entry_point_name: ''
+experiment_id: '317188016548026829'
+lifecycle_stage: active
+run_id: 9ce0de26b2484c25b1d1b1d10d500647
+run_name: persistent-midge-803
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774511354437
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/2bbe0464a167409a882be5fdda9c2d0b/artifacts
+end_time: 1774376009511
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 2bbe0464a167409a882be5fdda9c2d0b
+run_name: rogue-shoat-863
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774375509446
+status: 3
+tags: []
+user_id: root

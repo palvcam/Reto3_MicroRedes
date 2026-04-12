@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/148871842929121368/36edc46c909445ba9b35a6356ef203ed/artifacts
+end_time: 1775543977575
+entry_point_name: ''
+experiment_id: '148871842929121368'
+lifecycle_stage: active
+run_id: 36edc46c909445ba9b35a6356ef203ed
+run_name: amusing-penguin-508
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1775543545264
+status: 3
+tags: []
+user_id: root

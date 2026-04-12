@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/3e807c6c523c4427815d9848d6fd0967/artifacts
+end_time: 1774900166035
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 3e807c6c523c4427815d9848d6fd0967
+run_name: able-kit-979
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774899692544
+status: 3
+tags: []
+user_id: root

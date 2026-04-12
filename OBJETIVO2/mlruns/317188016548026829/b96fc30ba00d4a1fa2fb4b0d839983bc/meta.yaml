@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/317188016548026829/b96fc30ba00d4a1fa2fb4b0d839983bc/artifacts
+end_time: 1774513500164
+entry_point_name: ''
+experiment_id: '317188016548026829'
+lifecycle_stage: active
+run_id: b96fc30ba00d4a1fa2fb4b0d839983bc
+run_name: luminous-fowl-542
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774513107447
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/148871842929121368/f6327613d8fe4199bc0727495c8ed917/artifacts
+end_time: 1775550568030
+entry_point_name: ''
+experiment_id: '148871842929121368'
+lifecycle_stage: active
+run_id: f6327613d8fe4199bc0727495c8ed917
+run_name: mercurial-snake-549
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1775549532781
+status: 3
+tags: []
+user_id: root

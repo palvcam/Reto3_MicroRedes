@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/80d90f9a699146df8613f49a1b83c9a7/artifacts
+end_time: 1774898187501
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 80d90f9a699146df8613f49a1b83c9a7
+run_name: whimsical-trout-679
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774897035722
+status: 3
+tags: []
+user_id: root
