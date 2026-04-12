@@ -40,12 +40,14 @@ Reto03_MicroRedes
 ┃ ┃ ┣ 2_q-learning.ipynb         # Entrenamiento y evaluación del agente tabular
 ┃ ┃ ┣ custom_env_tabular2.py     # Wrapper del entorno pymgrid discretizado
 ┃ ┃ ┗ Decidir_bins.ipynb         # Análisis para la discretización de variables
-┃ ┣ data/                        # Datos de series temporales (load, PV, precios e-sios)                   
+┃ ┣ data/                        # Datos de series temporales (load, PV, precios e-sios)
+┃ ┣ conversion_pv_a_kw.py        # Conversion de irradancia a kW (.csv de PV)                 
 ┃ ┗ PPO/                         # Enfoque Deep-RL: entorno continuo y agentes PPO
-┃   ┣ Analisis_Resultados.ipynb  # Evaluación visual y métricas del modelo final
-┃   ┣ custom_env_continuous_v2.py# Wrapper del entorno pymgrid continuo
-┃   ┣ new_training_PPO_v2.py     # Script de entrenamiento principal PPO
-┃   ┗ train_PPO_optuna_v3.py     # Búsqueda de hiperparámetros con Optuna
+┃   ┣ Analisis_Resultados_v2.ipynb  # Evaluación visual y métricas del modelo final
+┃   ┣ custom_env_continuous_v2.py # Wrapper del entorno pymgrid continuo
+┃   ┣ Estimacion_C_continuous.py # Estimar constante normalizacion
+┃   ┗ training_PPO_v1.py     # Script de entrenamiento principal PPO
+┃ 
 ┣ OBJETIVO2/
 ┃ ┣ Evaluacion/                    # Evaluación de incertidumbre del modelo de aprendizaje federado
 ┃ ┣ federated-docker-avg/                    # Federated Learning Average 
@@ -133,7 +135,13 @@ Se distingue en dos etapas:
 - 2_q-learning.ipynb recoge todo el proceso de instanciación del simulador de la red, el hp search, el entrenamiento definitivo y las visualizaciones
 - Ejecutar Analisis_Resultados.ipynb para un análisis estadístico
 
-2. Deep RL:
+2. Deep RL (se desarrolla por completo en la carpeta PPO):
+- El entorno continuo creado se encuentra en el archivo custom_env_continuous_v2.py
+- Establecer las características físicas de simulación en pymgrid.
+- Ejecutar Estimacion_C_continuous.py respectando esas caracteristicas para estimar C.
+- Para proceder al entenamiento y optimización de HP se ejecutará el script training_PPO_v1.py, adaptando los parametros y variables según el interés.
+- Se emplea el notebook Analisis_resultados_PPO_v1.ipynb para el analisis de los resultados obtenidos.
+  
 
 OBJETIVO 2
 - Ejecutar el notebook Baseline.ipynb
