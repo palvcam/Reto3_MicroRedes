@@ -40,6 +40,60 @@ FEATURES = [
 EPOCH_CONFIGS = [3, 5, 8, 10]
 MU_CONFIGS    = [0.0, 0.01, 0.1, 0.5]
 LR            = 0.001
+# --- NUEVAS FUNCIONES AUXILIARES 
+
+def estimate_k_panel(train_df):
+    """Estima k_panel y el factor de eficiencia medio por panel."""
+    k_por_panel = {}
+    factor_por_panel = {}
+    
+    for pid, grupo in train_df.groupby("panel_id"):
+        if len(grupo) < 10: 
+            continue
+        G = grupo["POA irradiance CMP22 pyranometer (W/m2)"].values
+        T = grupo["PV module back surface temperature (degC)"].values
+        P = grupo["Pmp (W)"].values
+        
+        # 1. Estimación de k (pendiente de la regresión)
+        y_k = P / (G + 1e-6)
+        X_k = (T - 25).reshape(-1, 1)
+        m = LinearRegression()
+        m.fit(X_k, y_k)
+        k_por_panel[pid] = float(-m.coef_[0])
+        
+        # 2. Estimación de factor (promedio P/G) - IGUAL AL ORIGINAL
+        factor_por_panel[pid] = float(np.mean(P / (G + 1e-6)))
+        
+    k_global = np.mean(list(k_por_panel.values())) if k_por_panel else 0.004
+    factor_global = np.mean(list(factor_por_panel.values())) if factor_por_panel else 0.15
+    
+    return k_por_panel, k_global, factor_por_panel, factor_global
+
+def apply_feature_engineering(df, k_por_panel, k_global, factor_por_panel, factor_global):
+    """Aplica transformaciones usando los valores calculados en el entrenamiento."""
+    df = df.copy()
+    
+    # Mapeo de valores (asegura consistencia entre train/val/test)
+    df["k_panel"] = df["panel_id"].map(k_por_panel).fillna(k_global)
+    df["factor_panel"] = df["panel_id"].map(factor_por_panel).fillna(factor_global)
+    
+    # Cálculos físicos
+    df["T_correccion"] = (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
+    df["physical_model"] = (
+        df["POA irradiance CMP22 pyranometer (W/m2)"] * df["factor_panel"] * df["T_correccion"]
+    )
+    
+    # Ratios y transformaciones (idéntico al original)
+    df["T_diff"] = df["PV module back surface temperature (degC)"] - 25
+    df["poa_ghi_ratio"] = df["POA irradiance CMP22 pyranometer (W/m2)"] / (df["Global horizontal irradiance (W/m2)"] + 1e-6)
+    df["dni_ghi_ratio"] = df["Direct normal irradiance (W/m2)"] / (df["Global horizontal irradiance (W/m2)"] + 1e-6)
+    df["dhi_ghi_ratio"] = df["Diffuse horizontal irradiance (W/m2)"] / (df["Global horizontal irradiance (W/m2)"] + 1e-6)
+    df["cloud_index"] = df["Diffuse horizontal irradiance (W/m2)"] / (df["Direct normal irradiance (W/m2)"] + 1e-6)
+    df["temp_diff_air"] = df["PV module back surface temperature (degC)"] - df["Dry bulb temperature (degC)"]
+    df["poa_temp"] = df["POA irradiance CMP22 pyranometer (W/m2)"] * df["PV module back surface temperature (degC)"]
+    df["ghi_temp"] = df["Global horizontal irradiance (W/m2)"] * df["Dry bulb temperature (degC)"]
+    
+    return df
 
 # CLIENTE
 class PVClient(fl.client.NumPyClient):
@@ -65,76 +119,22 @@ class PVClient(fl.client.NumPyClient):
             columns=["Time Stamp (local standard time) yyyy-mm-ddThh:mm:ss"],
             errors="ignore"
         )
+        # Carga de archivos y limpieza inicial
         df_parque = df_parque.replace(-9999, np.nan).dropna()
 
-        # SPLIT
+        # --- SPLIT ---
         train_val_df, test_df = train_test_split(df_parque, test_size=0.2, random_state=42)
         train_df, val_df = train_test_split(train_val_df, test_size=0.2, random_state=42)
 
-        # ESTIMACIÓN k_panel
-        k_por_panel = {}
-        factor_por_panel = {}
+        # --- ESTIMACIÓN ---
+        # Calculamos k solo con train para evitar data leakage
+        k_map, k_glob, f_map, f_glob = estimate_k_panel(train_df)
 
-        for pid, grupo in train_df.groupby("panel_id"):
-            if len(grupo) < 10:
-                continue
+        # --- APLICAR INGENIERÍA ---
 
-            G = grupo["POA irradiance CMP22 pyranometer (W/m2)"].values
-            T = grupo["PV module back surface temperature (degC)"].values
-            P = grupo["Pmp (W)"].values
-
-            # 1. Cálculo de k_panel
-            y_k = P / (G + 1e-6)
-            X_k = (T - 25).reshape(-1, 1)
-
-            m = LinearRegression()
-            m.fit(X_k, y_k)
-            k_por_panel[pid] = float(-m.coef_[0])
-
-            # 2. Cálculo de factor_panel (Pmp_ref / G_ref medio del panel)
-            factor_por_panel[pid] = float(np.mean(P/ (G + 1e-6)))
-
-        k_global = np.mean(list(k_por_panel.values())) if k_por_panel else 0.004
-        factor_global = np.mean(list(factor_por_panel.values())) if factor_por_panel else 0.15
-
-        # FEATURE ENGINEERING
-        for df in [train_df, val_df, test_df]:
-            df["k_panel"] = df["panel_id"].map(k_por_panel).fillna(k_global)
-            df["factor_panel"] = df["panel_id"].map(factor_por_panel).fillna(factor_global)
-            df["T_correccion"] = (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
-
-            df["physical_model"] = (
-                df["POA irradiance CMP22 pyranometer (W/m2)"] * df["factor_panel"] * (1 - df["k_panel"] * (df["PV module back surface temperature (degC)"] - 25))
-            )
-
-            df["T_diff"] = df["PV module back surface temperature (degC)"] - 25
-
-            df["poa_ghi_ratio"] = df["POA irradiance CMP22 pyranometer (W/m2)"] / (
-                df["Global horizontal irradiance (W/m2)"] + 1e-6
-            )
-            df["dni_ghi_ratio"] = df["Direct normal irradiance (W/m2)"] / (
-                df["Global horizontal irradiance (W/m2)"] + 1e-6
-            )
-            df["dhi_ghi_ratio"] = df["Diffuse horizontal irradiance (W/m2)"] / (
-                df["Global horizontal irradiance (W/m2)"] + 1e-6
-            )
-
-            df["cloud_index"] = df["Diffuse horizontal irradiance (W/m2)"] / (
-                df["Direct normal irradiance (W/m2)"] + 1e-6
-            )
-
-            df["temp_diff_air"] = (
-                df["PV module back surface temperature (degC)"] -
-                df["Dry bulb temperature (degC)"]
-            )
-
-            df["poa_temp"] = df["POA irradiance CMP22 pyranometer (W/m2)"] * df[
-                "PV module back surface temperature (degC)"
-            ]
-
-            df["ghi_temp"] = df["Global horizontal irradiance (W/m2)"] * df[
-                "Dry bulb temperature (degC)"
-            ]
+        train_df = apply_feature_engineering(train_df, k_map, k_glob, f_map, f_glob)
+        val_df   = apply_feature_engineering(val_df, k_map, k_glob, f_map, f_glob)
+        test_df  = apply_feature_engineering(test_df, k_map, k_glob, f_map, f_glob)
 
         # Guardar para usarlo en el guardrail
         self.physical_model_train = train_df["physical_model"]
