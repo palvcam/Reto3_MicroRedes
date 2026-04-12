@@ -13,27 +13,38 @@ import matplotlib.pyplot as plt
 import time
 
 class CheckpointFedAvg(FedAvg):
-    """Estrategia que hereda de FedAvg para guardar el modelo tras cada ronda."""
-    def aggregate_fit(self, server_round, results, failures):
-        # 1. Ejecuta la agregación normal matemática de FedAvg
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
-        
-        # 2. Guarda los pesos si la agregación fue exitosa
-        if aggregated_parameters is not None:
-            # Descomprime el formato de Flower a Arrays de NumPy
-            aggregated_ndarrays = flwr_common.parameters_to_ndarrays(aggregated_parameters)
-            
-            # Ruta absoluta dentro del contenedor Docker
-            #save_path = "/app/modelos_guardados"
-            save_path = "modelos_guardados2"
-            os.makedirs(save_path, exist_ok=True)
-            
-            # Sobrescribe el archivo. Al final, contendrá el último modelo.
-            np.savez(f"{save_path}/modelo_global_final.npz", *aggregated_ndarrays)
-            print(f"[Servidor] Checkpoint: Modelo global (ronda {server_round}) guardado en disco.")
-            
-        return aggregated_parameters, aggregated_metrics
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.best_mse = float("inf")  # mejor hasta ahora
 
+    def aggregate_fit(self, server_round, results, failures):
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
+
+        if aggregated_parameters is not None:
+
+            # 🔹 Calcular MSE global de esta ronda
+            metrics = [(int(r.num_examples), r.metrics) for _, r in results]
+            total_samples = sum(n for n, _ in metrics)
+
+            mse_val = sum(n * m["real_val_mse"] for n, m in metrics) / total_samples
+
+            print(f"[Servidor] R{server_round} MSE_val: {mse_val:.4f}")
+
+            # 🔹 Si mejora → guardar
+            if mse_val < self.best_mse:
+                self.best_mse = mse_val
+
+                aggregated_ndarrays = flwr_common.parameters_to_ndarrays(aggregated_parameters)
+
+                save_path = "/app/modelos_guardados2"
+                os.makedirs(save_path, exist_ok=True)
+
+                np.savez(f"{save_path}/modelo_mejor.npz", *aggregated_ndarrays)
+
+                print(f"Nuevo mejor modelo guardado en ronda {server_round}")
+
+        return aggregated_parameters, aggregated_metrics
+    
 history = {"round": [], "mse_val": [], "rmse_val": [], "r2_val": [], "mse_test": [], "rmse_test": [], "r2_test": []} # Diccionario que acumula las métricas globales de cada ronda
 
 # Agrega las métricas de los 3 clientes en una métrica global ponderada por número de muestras
@@ -284,8 +295,8 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    #plt.savefig("/app/output/evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
-    plt.savefig("evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    plt.savefig("/app/output/evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
+    #plt.savefig("evolucion_metricas_val.png", dpi=150, bbox_inches="tight")
     plt.show()
     print("Gráfica guardada en aws evolucion_metricas (validaión).png")
 
@@ -316,8 +327,8 @@ if __name__ == "__main__":
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    #plt.savefig("/app/output/evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
-    plt.savefig("evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    plt.savefig("/app/output/evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
+    # plt.savefig("evolucion_metricas_test.png", dpi=150, bbox_inches="tight")
     plt.show()
     print("Gráfica guardada en aws evolucion_metricas (test).png")
     
