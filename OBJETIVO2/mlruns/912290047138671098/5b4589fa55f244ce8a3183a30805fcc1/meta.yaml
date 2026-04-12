@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/5b4589fa55f244ce8a3183a30805fcc1/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 5b4589fa55f244ce8a3183a30805fcc1
+run_name: rumbling-slug-765
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774903138899
+status: 1
+tags: []
+user_id: root

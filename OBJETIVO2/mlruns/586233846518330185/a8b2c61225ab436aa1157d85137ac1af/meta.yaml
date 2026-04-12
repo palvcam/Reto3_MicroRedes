@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/586233846518330185/a8b2c61225ab436aa1157d85137ac1af/artifacts
+end_time: 1774874732225
+entry_point_name: ''
+experiment_id: '586233846518330185'
+lifecycle_stage: active
+run_id: a8b2c61225ab436aa1157d85137ac1af
+run_name: defiant-croc-347
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774873126085
+status: 3
+tags: []
+user_id: root

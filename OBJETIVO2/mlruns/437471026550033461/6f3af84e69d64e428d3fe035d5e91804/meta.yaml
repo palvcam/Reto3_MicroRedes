@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/6f3af84e69d64e428d3fe035d5e91804/artifacts
+end_time: 1774378123881
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 6f3af84e69d64e428d3fe035d5e91804
+run_name: efficient-vole-919
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774377526455
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/82ca33e0fada4c87b485cd3147134a86/artifacts
+end_time: 1774902641173
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 82ca33e0fada4c87b485cd3147134a86
+run_name: debonair-auk-592
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774902031170
+status: 3
+tags: []
+user_id: root

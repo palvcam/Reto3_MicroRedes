@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/bd8a1a1c4b82411896ab78b16a42222e/artifacts
+end_time: 1774375093681
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: bd8a1a1c4b82411896ab78b16a42222e
+run_name: clean-auk-329
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774374508644
+status: 3
+tags: []
+user_id: root

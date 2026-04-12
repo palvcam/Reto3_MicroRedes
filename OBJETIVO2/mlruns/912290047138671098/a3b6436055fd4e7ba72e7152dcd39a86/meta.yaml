@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/a3b6436055fd4e7ba72e7152dcd39a86/artifacts
+end_time: 1774900840279
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: a3b6436055fd4e7ba72e7152dcd39a86
+run_name: rumbling-skunk-36
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774900166053
+status: 3
+tags: []
+user_id: root

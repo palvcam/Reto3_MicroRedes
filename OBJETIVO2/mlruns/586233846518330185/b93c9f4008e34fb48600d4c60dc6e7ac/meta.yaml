@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/586233846518330185/b93c9f4008e34fb48600d4c60dc6e7ac/artifacts
+end_time: 1774875708242
+entry_point_name: ''
+experiment_id: '586233846518330185'
+lifecycle_stage: active
+run_id: b93c9f4008e34fb48600d4c60dc6e7ac
+run_name: orderly-bear-106
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774874732243
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/5cb8bdadf8d542c39eceb25703baf526/artifacts
+end_time: 1774379191094
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 5cb8bdadf8d542c39eceb25703baf526
+run_name: zealous-hawk-465
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774378123902
+status: 3
+tags: []
+user_id: root

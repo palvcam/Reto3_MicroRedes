@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/437471026550033461/8e029634568f4e5299cb9f0656836ef2/artifacts
+end_time: 1774374213202
+entry_point_name: ''
+experiment_id: '437471026550033461'
+lifecycle_stage: active
+run_id: 8e029634568f4e5299cb9f0656836ef2
+run_name: peaceful-auk-980
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774373901210
+status: 3
+tags: []
+user_id: root

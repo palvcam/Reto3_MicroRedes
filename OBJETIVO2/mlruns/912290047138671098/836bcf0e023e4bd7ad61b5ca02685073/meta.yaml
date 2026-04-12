@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/836bcf0e023e4bd7ad61b5ca02685073/artifacts
+end_time: 1774902031138
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 836bcf0e023e4bd7ad61b5ca02685073
+run_name: sedate-bear-810
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774901566204
+status: 3
+tags: []
+user_id: root

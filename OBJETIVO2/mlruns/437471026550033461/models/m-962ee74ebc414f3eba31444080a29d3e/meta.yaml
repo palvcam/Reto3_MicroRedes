@@ -1,0 +1,10 @@
+artifact_location: file:///content/drive/MyDrive/mlruns/437471026550033461/models/m-962ee74ebc414f3eba31444080a29d3e/artifacts
+creation_timestamp: 1774375088071
+experiment_id: '437471026550033461'
+last_updated_timestamp: 1774375093635
+model_id: m-962ee74ebc414f3eba31444080a29d3e
+model_type: null
+name: model
+source_run_id: bd8a1a1c4b82411896ab78b16a42222e
+status: 2
+status_message: null

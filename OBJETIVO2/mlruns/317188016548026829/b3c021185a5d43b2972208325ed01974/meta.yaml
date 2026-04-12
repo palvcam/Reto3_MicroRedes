@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/317188016548026829/b3c021185a5d43b2972208325ed01974/artifacts
+end_time: 1774514035886
+entry_point_name: ''
+experiment_id: '317188016548026829'
+lifecycle_stage: active
+run_id: b3c021185a5d43b2972208325ed01974
+run_name: flawless-hare-731
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774513500178
+status: 3
+tags: []
+user_id: root

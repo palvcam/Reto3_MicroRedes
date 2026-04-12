@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/912290047138671098/02409fa8acc64edbbbf94909770528b4/artifacts
+end_time: 1774903138882
+entry_point_name: ''
+experiment_id: '912290047138671098'
+lifecycle_stage: active
+run_id: 02409fa8acc64edbbbf94909770528b4
+run_name: salty-moose-81
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774902641191
+status: 3
+tags: []
+user_id: root

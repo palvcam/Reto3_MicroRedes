@@ -1,0 +1,14 @@
+artifact_uri: file:///content/drive/MyDrive/mlruns/317188016548026829/7a4a51710394457a96ff646c693f7bdb/artifacts
+end_time: 1774512057762
+entry_point_name: ''
+experiment_id: '317188016548026829'
+lifecycle_stage: active
+run_id: 7a4a51710394457a96ff646c693f7bdb
+run_name: polite-wolf-722
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774511612532
+status: 3
+tags: []
+user_id: root
