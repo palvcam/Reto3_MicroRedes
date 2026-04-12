@@ -25,7 +25,7 @@ class CheckpointFedAvg(FedAvg):
             
             # Ruta absoluta dentro del contenedor Docker
             #save_path = "/app/modelos_guardados"
-            save_path = "modelos_guardados"
+            save_path = "modelos_guardados2"
             os.makedirs(save_path, exist_ok=True)
             
             # Sobrescribe el archivo. Al final, contendrá el último modelo.
