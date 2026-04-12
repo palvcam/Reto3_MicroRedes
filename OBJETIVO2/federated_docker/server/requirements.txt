@@ -1,4 +1,0 @@
-flwr
-numpy
-matplotlib
-scipy
